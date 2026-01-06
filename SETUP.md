@@ -44,6 +44,15 @@ Check if `ios/Runner/GoogleService-Info.plist` exists.
 ### Web (Optional)
 If running on web, ensure `lib/firebase_options.dart` is present and configured. If not, you may need to run `flutterfire configure`.
 
+### Enable Features
+1.  **Authentication**: Go to the Firebase Console -> Build -> Authentication -> Sign-in method.
+    *   Enable **Email/Password**.
+    *   Enable **Google** (if using Google Sign-In).
+2.  **Firestore Database**: Go to Build -> Firestore Database -> Create Database.
+    *   Start in **Test Mode** (for development) or set appropriate security rules.
+3.  **Storage**: Go to Build -> Storage -> Get Started.
+    *   Start in **Test Mode** (for development) to allow image uploads.
+
 ## Running the App
 
 1.  **Launch an Emulator/Simulator** or connect a physical device.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../theme/app_theme.dart';
+import 'sign_up_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -227,7 +228,9 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                         // Sign up navigation
+                         Navigator.of(context).push(
+                           MaterialPageRoute(builder: (context) => const SignUpScreen()),
+                         );
                       },
                       child: const Text(
                         'Sign Up',
