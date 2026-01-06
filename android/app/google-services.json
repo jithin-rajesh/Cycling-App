@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "764206559936",
+    "project_id": "cruizr-778a0",
+    "storage_bucket": "cruizr-778a0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:764206559936:android:4959b42bc74b1c9a477325",
+        "android_client_info": {
+          "package_name": "com.cruizr.cruizr"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "764206559936-uof1bq0upc1hpnopa8eo944t7f4ptsup.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCMkRF6sv_ycxKJcK-sS3M7XsKR4y-CBQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "764206559936-uof1bq0upc1hpnopa8eo944t7f4ptsup.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "764206559936-nrsvt4ofv6t4v0e6ol30v1vjlha7v1r3.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.cruizr.cruizr"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
