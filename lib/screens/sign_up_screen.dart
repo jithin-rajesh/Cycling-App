@@ -73,7 +73,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          'Join ActivePulse',
+          'Join Cruizr',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontStyle: FontStyle.italic,
             fontSize: 20,
@@ -201,7 +201,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           text: TextSpan(
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
                             children: const [
-                              TextSpan(text: 'I agree to ActivePulse\'s '),
+                              TextSpan(text: 'I agree to Cruizr\'s '),
                               TextSpan(text: 'Terms of Service', style: TextStyle(fontWeight: FontWeight.bold, color: CruizrTheme.primaryDark)),
                               TextSpan(text: ' and acknowledge the '),
                               TextSpan(text: 'Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, color: CruizrTheme.primaryDark)),

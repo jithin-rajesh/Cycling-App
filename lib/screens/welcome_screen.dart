@@ -12,8 +12,41 @@ class WelcomeScreen extends StatefulWidget {
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
+class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProviderStateMixin {
   bool _isLoading = false;
+
+  // Heartbeat animation
+  late AnimationController _heartbeatController;
+  late Animation<double> _heartbeatAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _heartbeatController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    // Create a heartbeat pattern: quick pulse, quick pulse, pause
+    _heartbeatAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.15), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.15, end: 1.0), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.1), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 60),
+    ]).animate(CurvedAnimation(
+      parent: _heartbeatController,
+      curve: Curves.easeInOut,
+    ));
+
+    _heartbeatController.repeat();
+  }
+
+  @override
+  void dispose() {
+    _heartbeatController.dispose();
+    super.dispose();
+  }
 
   Future<void> _signInWithGoogle() async {
     setState(() {
@@ -67,7 +100,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              // Logo
+              // Logo with heartbeat animation
               Center(
                 child: Container(
                   width: 120,
@@ -83,10 +116,20 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.monitor_heart_outlined, // Pulse icon
-                    size: 60,
-                    color: CruizrTheme.accentPink,
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _heartbeatAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _heartbeatAnimation.value,
+                          child: const Icon(
+                            Icons.favorite_rounded,
+                            size: 60,
+                            color: CruizrTheme.accentPink,
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -94,7 +137,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               
               // Title
               Text(
-                'ActivePulse',
+                'Cruizr',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontSize: 42,
                   fontWeight: FontWeight.bold,

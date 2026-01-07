@@ -11,11 +11,38 @@ class SignInScreen extends StatefulWidget {
   State<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
+class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _isPasswordVisible = false;
+
+  // Heartbeat animation
+  late AnimationController _heartbeatController;
+  late Animation<double> _heartbeatAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _heartbeatController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    // Create a heartbeat pattern: quick pulse, quick pulse, pause
+    _heartbeatAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.15), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.15, end: 1.0), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.1), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 60),
+    ]).animate(CurvedAnimation(
+      parent: _heartbeatController,
+      curve: Curves.easeInOut,
+    ));
+
+    _heartbeatController.repeat();
+  }
 
   Future<void> _signInWithEmail() async {
     setState(() {
@@ -76,6 +103,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   void dispose() {
+    _heartbeatController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -101,23 +129,31 @@ class _SignInScreenState extends State<SignInScreen> {
                     child: Column(
                       children: [
                         Container(
-                           padding: const EdgeInsets.all(16),
-                           decoration: BoxDecoration(
-                             color: Colors.white,
-                             shape: BoxShape.circle,
-                             boxShadow: [
-                               BoxShadow(
-                                 color: Colors.black.withOpacity(0.05),
-                                 blurRadius: 20,
-                                 offset: const Offset(0, 10),
-                               ),
-                             ],
-                           ),
-                           child: const Icon(Icons.favorite_rounded, size: 40, color: CruizrTheme.accentPink),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: AnimatedBuilder(
+                            animation: _heartbeatAnimation,
+                            builder: (context, child) {
+                              return Transform.scale(
+                                scale: _heartbeatAnimation.value,
+                                child: const Icon(Icons.favorite_rounded, size: 40, color: CruizrTheme.accentPink),
+                              );
+                            },
+                          ),
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'ActivePulse',
+                          'Cruizr',
                           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontSize: 36,
                           ),
@@ -266,7 +302,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        "New to ActivePulse?",
+                        "New to Cruizr?",
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       TextButton(

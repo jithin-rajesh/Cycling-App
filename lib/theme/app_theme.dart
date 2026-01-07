@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class CruizrTheme {
-  // ActivePulse Color Palette
+  // Cruizr Color Palette
   static const Color background = Color(0xFFFDF6F5); // Light Pink Background
   static const Color surface = Color(0xFFF5EBE9); // Peach/Beige for inputs
   static const Color primaryDark = Color(0xFF4A3438); // Dark Brown (Text/Buttons)

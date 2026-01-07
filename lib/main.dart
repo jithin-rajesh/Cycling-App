@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'theme/app_theme.dart';
-import 'screens/sign_in_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'firebase_options.dart';
 
@@ -72,7 +71,15 @@ class AuthGate extends StatelessWidget {
               return const ProfileSetupScreen();
             }
 
-            // Profile Exists -> Go Home
+            // Check if profile is complete (has new onboarding fields)
+            final profileData = profileSnapshot.data!.data() as Map<String, dynamic>?;
+            if (profileData == null || 
+                !profileData.containsKey('activities') || 
+                !profileData.containsKey('activityLevel')) {
+              return const ProfileSetupScreen();
+            }
+
+            // Profile Exists and Complete -> Go Home
             return const HomeScreen();
           },
         );
