@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'theme/app_theme.dart';
 import 'screens/sign_in_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'firebase_options.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -48,7 +49,7 @@ class AuthGate extends StatelessWidget {
 
         // 2. User Not Logged In
         if (!snapshot.hasData) {
-          return const SignInScreen();
+          return const WelcomeScreen();
         }
 
         // 3. User Logged In -> Check Firestore for Profile

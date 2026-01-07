@@ -67,118 +67,198 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: CruizrTheme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
+        title: Text(
+          'Join ActivePulse',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontStyle: FontStyle.italic,
+            fontSize: 20,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: CruizrTheme.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header
-                Text(
-                  'Create Account',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Join the community',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-
-                // Form
-                TextField(
-                  controller: _nameController,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                    prefixIcon: Icon(Icons.person_outline, color: CruizrTheme.primaryMint),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined, color: CruizrTheme.primaryMint),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: !_isPasswordVisible,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline, color: CruizrTheme.primaryMint),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                        color: CruizrTheme.textSecondary,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isPasswordVisible = !_isPasswordVisible;
-                        });
-                      },
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                   const SizedBox(height: 16),
+                  // Header
+                  Text(
+                    'Create Your\nActive Account',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      height: 1.2,
+                      fontSize: 40,
                     ),
+                    textAlign: TextAlign.left,
                   ),
-                ),
-                const SizedBox(height: 32),
+                  const SizedBox(height: 48),
 
-                // Sign Up Button
-                FilledButton(
-                  onPressed: _isLoading ? null : _signUp,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: CruizrTheme.background,
+                  // Form
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 8),
+                        child: Text('Full Name', style: Theme.of(context).textTheme.bodyMedium),
+                      ),
+                      TextField(
+                         controller: _nameController,
+                         style: Theme.of(context).textTheme.bodyLarge,
+                         cursorColor: CruizrTheme.primaryDark,
+                         decoration: const InputDecoration(
+                            hintText: 'John Doe',
+                         ),
+                      ),
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 8),
+                        child: Text('Email Address', style: Theme.of(context).textTheme.bodyMedium),
+                      ),
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        cursorColor: CruizrTheme.primaryDark,
+                        decoration: const InputDecoration(
+                          hintText: 'your.email@example.com',
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 8),
+                        child: Text('Create Password', style: Theme.of(context).textTheme.bodyMedium),
+                      ),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: !_isPasswordVisible,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        cursorColor: CruizrTheme.primaryDark,
+                        decoration: InputDecoration(
+                          hintText: 'Minimum 8 characters',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Password Strength Indicator (Simulated)
+                      Row(
+                        children: [
+                          Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.accentPink, borderRadius: BorderRadius.circular(2)))),
+                          const SizedBox(width: 8),
+                          Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.accentPink.withOpacity(0.5), borderRadius: BorderRadius.circular(2)))),
+                          const SizedBox(width: 8),
+                          Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.surface, borderRadius: BorderRadius.circular(2)))),
+                          const SizedBox(width: 8),
+                          Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.surface, borderRadius: BorderRadius.circular(2)))),
+                        ],
+                      ),
+
+                       const SizedBox(height: 24),
+                       // Confirm Password (Added field for UI completeness, logic can simply check it matches or ignore for now)
+                       Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 8),
+                        child: Text('Confirm Password', style: Theme.of(context).textTheme.bodyMedium),
+                      ),
+                      TextField(
+                        obscureText: true,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        cursorColor: CruizrTheme.primaryDark,
+                        decoration: const InputDecoration(
+                          hintText: 'Re-enter your password',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Terms Checkbox
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: Checkbox(
+                          value: true, // simplified for UI demo
+                          onChanged: (val) {},
+                          activeColor: CruizrTheme.primaryDark,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+                            children: const [
+                              TextSpan(text: 'I agree to ActivePulse\'s '),
+                              TextSpan(text: 'Terms of Service', style: TextStyle(fontWeight: FontWeight.bold, color: CruizrTheme.primaryDark)),
+                              TextSpan(text: ' and acknowledge the '),
+                              TextSpan(text: 'Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, color: CruizrTheme.primaryDark)),
+                            ],
                           ),
-                        )
-                      : const Text('Sign Up'),
-                ),
-
-                const SizedBox(height: 24),
-                
-                // Footer
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Already have an account?",
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    TextButton(
-                      onPressed: () {
-                         Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (context) => const SignInScreen()),
-                         );
-                      },
-                      child: const Text(
-                        'Sign In',
-                        style: TextStyle(color: CruizrTheme.primaryMint),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Sign Up Button
+                  FilledButton(
+                    onPressed: _isLoading ? null : _signUp,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Create My Account'),
+                  ),
+
+                  const SizedBox(height: 32),
+                  
+                  // Footer
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Already active? ",
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                           Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(builder: (context) => const SignInScreen()),
+                           );
+                        },
+                        child: Text(
+                          'Sign In',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: CruizrTheme.primaryDark, 
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Playfair Display' // Use Serif for emphasis
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
         ),
