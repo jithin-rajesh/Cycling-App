@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import 'activity_level_screen.dart';
+import '../sign_up_screen.dart';
 
 class ActivitiesScreen extends StatefulWidget {
-  final Map<String, dynamic> profileData;
+  final Map<String, dynamic>? profileData; // Mutable for explore mode flow
+  final bool isExploreMode;
+  final List<String> preSelectedActivities;
 
-  const ActivitiesScreen({super.key, required this.profileData});
+  const ActivitiesScreen({
+    super.key, 
+    this.profileData,
+    this.isExploreMode = false,
+    this.preSelectedActivities = const [],
+  });
 
   @override
   State<ActivitiesScreen> createState() => _ActivitiesScreenState();
 }
 
 class _ActivitiesScreenState extends State<ActivitiesScreen> {
-  final Set<String> _selectedActivities = {};
+  late Set<String> _selectedActivities;
 
   final List<Map<String, String>> _activities = [
     {'id': 'cycling', 'emoji': '🚴', 'name': 'Cycling'},
@@ -25,19 +33,37 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
     {'id': 'volleyball', 'emoji': '🏐', 'name': 'Volleyball'},
     {'id': 'soccer', 'emoji': '⚽', 'name': 'Soccer'},
     {'id': 'badminton', 'emoji': '🏸', 'name': 'Badminton'},
-    {'id': 'gymnastics', 'emoji': '🤸', 'name': 'Gymnastics'},
-    {'id': 'dance', 'emoji': '💃', 'name': 'Dance'},
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _selectedActivities = widget.preSelectedActivities.toSet();
+  }
+
   void _goToNextStep() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ActivityLevelScreen(
-          profileData: widget.profileData,
-          selectedActivities: _selectedActivities.toList(),
+    if (widget.isExploreMode) {
+      // Navigate to Sign Up, passing selection
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => SignUpScreen(
+            preSelectedActivities: _selectedActivities.toList(),
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      // Standard Profile Setup Flow
+      if (widget.profileData == null) return; // Should not happen in this flow
+      
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ActivityLevelScreen(
+            profileData: widget.profileData!,
+            selectedActivities: _selectedActivities.toList(),
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -53,6 +79,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontStyle: FontStyle.italic,
             fontSize: 20,
+            color: CruizrTheme.textPrimary,
           ),
         ),
         leading: IconButton(
@@ -62,35 +89,28 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       ),
       body: Column(
         children: [
-          // Curved header accent
-          Container(
-            height: 20,
-            decoration: const BoxDecoration(
-              color: CruizrTheme.surface,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-            ),
-          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 16),
                   // Header
                   Text(
                     'What moves you?',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: 32,
+                      fontSize: 28,
+                      fontFamily: 'Playfair Display',
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Select all activities that match your rhythm',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: CruizrTheme.textSecondary,
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 32),
 
@@ -102,7 +122,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
-                      childAspectRatio: 1.2,
+                      childAspectRatio: 1.1,
                     ),
                     itemCount: _activities.length,
                     itemBuilder: (context, index) {
@@ -122,26 +142,35 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           decoration: BoxDecoration(
-                            color: CruizrTheme.surface,
-                            borderRadius: BorderRadius.circular(16),
+                            color: isSelected ? CruizrTheme.surface : const Color(0xFFFDF8F6), // Slightly lighter than bg
+                            borderRadius: BorderRadius.circular(24),
                             border: Border.all(
                               color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
                               width: 2,
                             ),
+                            boxShadow: [
+                                BoxShadow(
+                                  color: Colors.brown.withOpacity(0.03),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                            ],
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
+                              // Image/Emoji
                               Text(
                                 activity['emoji']!,
-                                style: const TextStyle(fontSize: 40),
+                                style: const TextStyle(fontSize: 48),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
+                              // Label
                               Text(
                                 activity['name']!,
                                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                                  color: isSelected ? CruizrTheme.primaryDark : CruizrTheme.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                  color: CruizrTheme.textPrimary,
                                 ),
                               ),
                             ],
@@ -155,17 +184,34 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
               ),
             ),
           ),
-          // Bottom Button
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: FilledButton(
-              onPressed: _goToNextStep,
-              child: const Row(
+          // Bottom Button should be sticky
+          Container(
+             width: double.infinity,
+             padding: const EdgeInsets.all(24.0),
+             decoration: BoxDecoration(
+               color: CruizrTheme.background,
+               gradient: LinearGradient(
+                 begin: Alignment.topCenter,
+                 end: Alignment.bottomCenter,
+                 colors: [
+                   CruizrTheme.background.withOpacity(0),
+                   CruizrTheme.background,
+                 ],
+                 stops: const [0.0, 0.3],
+               ),
+             ),
+             child: FilledButton(
+              onPressed: _selectedActivities.isNotEmpty ? _goToNextStep : null,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Next Step'),
-                  SizedBox(width: 8),
-                  Icon(Icons.arrow_forward, size: 18),
+                  Text(widget.isExploreMode ? 'Continue to Sign Up' : 'Next Step'),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward, size: 18),
                 ],
               ),
             ),

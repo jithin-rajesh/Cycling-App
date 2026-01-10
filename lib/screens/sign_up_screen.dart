@@ -5,7 +5,9 @@ import 'profile_setup_screen.dart';
 import 'sign_in_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
+  final List<String> preSelectedActivities;
+
+  const SignUpScreen({super.key, this.preSelectedActivities = const []});
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
@@ -38,7 +40,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (mounted) {
         // 3. Navigate to Profile Setup
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),
+          MaterialPageRoute(
+            builder: (context) => ProfileSetupScreen(
+              preSelectedActivities: widget.preSelectedActivities,
+            ),
+          ),
         );
       }
     } on FirebaseAuthException catch (e) {

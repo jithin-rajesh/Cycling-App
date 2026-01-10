@@ -3,7 +3,9 @@ import '../theme/app_theme.dart';
 import 'onboarding/activities_screen.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
-  const ProfileSetupScreen({super.key});
+  final List<String> preSelectedActivities;
+
+  const ProfileSetupScreen({super.key, this.preSelectedActivities = const []});
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -46,6 +48,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             'location': _locationController.text.trim(),
             'photoUrl': _imageUrl,
           },
+          preSelectedActivities: widget.preSelectedActivities,
         ),
       ),
     );

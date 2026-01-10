@@ -4,6 +4,7 @@ import 'sign_in_screen.dart';
 import 'sign_up_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'onboarding/activities_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -217,7 +218,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
               const SizedBox(height: 32),
               Center(
                  child: TextButton(
-                   onPressed: _isLoading ? null : () {},
+                   onPressed: _isLoading ? null : () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const ActivitiesScreen(isExploreMode: true),
+                        ),
+                      );
+                   },
                    child: Row(
                      mainAxisSize: MainAxisSize.min,
                      children: [
