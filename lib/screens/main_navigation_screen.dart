@@ -3,6 +3,9 @@ import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'routes_screen.dart';
+import 'start_activity_screen.dart';
+
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
@@ -15,7 +18,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const Scaffold(body: Center(child: Text('Routes'))),
+    const RoutesScreen(),
     const Scaffold(body: Center(child: Text('Start'))), // Floating button placeholder
     const Scaffold(body: Center(child: Text('Community'))),
     const Scaffold(body: Center(child: Text('Profile'))),
@@ -37,7 +40,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       backgroundColor: CruizrTheme.background,
       body: _screens[_selectedIndex],
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const StartActivityScreen(),
+              fullscreenDialog: true,
+            ),
+          );
+        },
         backgroundColor: CruizrTheme.accentPink,
         elevation: 4,
         child: const Icon(Icons.add, color: Colors.white, size: 32),
