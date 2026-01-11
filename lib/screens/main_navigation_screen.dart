@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
+import 'profile_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'routes_screen.dart';
@@ -21,7 +22,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     const RoutesScreen(),
     const Scaffold(body: Center(child: Text('Start'))), // Floating button placeholder
     const Scaffold(body: Center(child: Text('Community'))),
-    const Scaffold(body: Center(child: Text('Profile'))),
+    const ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {

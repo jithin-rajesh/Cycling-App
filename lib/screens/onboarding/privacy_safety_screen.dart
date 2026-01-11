@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/cruizr_switch.dart';
 import '../home_screen.dart';
 
 class PrivacySafetyScreen extends StatefulWidget {
@@ -237,10 +238,9 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
                             ],
                           ),
                         ),
-                        Switch(
+                        CruizrSwitch(
                           value: _liveActivitySharing,
                           onChanged: (value) => setState(() => _liveActivitySharing = value),
-                          activeColor: CruizrTheme.accentPink,
                         ),
                       ],
                     ),

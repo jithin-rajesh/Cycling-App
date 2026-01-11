@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/cruizr_switch.dart';
 import 'routes_screen.dart';
+import 'just_move_screen.dart';
+import 'create_route_screen.dart';
 
 class StartActivityScreen extends StatefulWidget {
   const StartActivityScreen({super.key});
@@ -58,13 +61,28 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
 
               // Action Cards
               _buildActionCard(
-                icon: Icons.push_pin, // Using pin as proxy for the location marker
+                icon: Icons.push_pin,
                 title: "Just Move",
                 subtitle: "Start recording your activity now",
                 iconColor: const Color(0xFFE91E63),
                 iconBgColor: const Color(0xFFFCE4EC),
                 onTap: () {
-                  // TODO: Start generic activity logic
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const JustMoveScreen()),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              _buildActionCard(
+                icon: Icons.route,
+                title: "Create Route",
+                subtitle: "Plan and save a custom route",
+                iconColor: const Color(0xFFD97D84),
+                iconBgColor: const Color(0xFFFDF6F5),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CreateRouteScreen()),
+                  );
                 },
               ),
               const SizedBox(height: 20),
@@ -76,11 +94,6 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                 iconBgColor: const Color(0xFFE3F2FD),
                 onTap: () {
                   Navigator.of(context).pop(); // Close modal
-                  // Navigate to routes. In a real app, maybe pass a flag to switch tab
-                  // For now, let's just push the route screen or assuming we are verified
-                  // Ideally we switch the main tab to Routes.
-                  // But request said "lead to a page where user can start... similar to screenshot".
-                  // The screenshot shows this menu. Tapping 'Follow a Route' implied going to route list.
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RoutesScreen()));
                 },
               ),
@@ -173,18 +186,14 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                          ),
                        ],
                      ),
-                     Switch(
-                       value: _liveTrackingEnabled,
-                       onChanged: (val) {
-                         setState(() {
-                           _liveTrackingEnabled = val;
-                         });
-                       },
-                       activeColor: Colors.white,
-                       activeTrackColor: const Color(0xFFD67B80),
-                       inactiveThumbColor: Colors.white,
-                       inactiveTrackColor: Colors.grey.shade300,
-                     ),
+                      CruizrSwitch(
+                        value: _liveTrackingEnabled,
+                        onChanged: (val) {
+                          setState(() {
+                            _liveTrackingEnabled = val;
+                          });
+                        },
+                      ),
                    ],
                  ),
               ),

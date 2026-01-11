@@ -1,0 +1,761 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../theme/app_theme.dart';
+import '../widgets/cruizr_switch.dart';
+import 'sign_in_screen.dart';
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isLoading = true;
+  bool _isSaving = false;
+  
+  // Profile data
+  String? _photoUrl;
+  final _preferredNameController = TextEditingController();
+  String? _selectedPronoun;
+  final _birthYearController = TextEditingController();
+  final _locationController = TextEditingController();
+  
+  // Activities
+  Set<String> _selectedActivities = {};
+  
+  // Activity level
+  String? _activityLevel;
+  String _measurementSystem = 'metric';
+  
+  // Privacy settings
+  String _profileVisibility = 'public';
+  String _activitySharing = 'followers';
+  bool _liveActivitySharing = true;
+  
+  // Notifications
+  bool _activityReminders = true;
+  bool _communityUpdates = true;
+  bool _achievementCelebrations = false;
+
+  final List<String> _pronounOptions = [
+    'he/him',
+    'she/her',
+    'they/them',
+    'other',
+    'prefer not to say',
+  ];
+
+  final List<Map<String, String>> _activities = [
+    {'id': 'cycling', 'emoji': '🚴', 'name': 'Cycling'},
+    {'id': 'running', 'emoji': '🏃', 'name': 'Running'},
+    {'id': 'swimming', 'emoji': '🏊', 'name': 'Swimming'},
+    {'id': 'yoga', 'emoji': '🧘', 'name': 'Yoga'},
+    {'id': 'hiking', 'emoji': '🥾', 'name': 'Hiking'},
+    {'id': 'strength', 'emoji': '🏋️', 'name': 'Strength'},
+    {'id': 'tennis', 'emoji': '🎾', 'name': 'Tennis'},
+    {'id': 'volleyball', 'emoji': '🏐', 'name': 'Volleyball'},
+    {'id': 'soccer', 'emoji': '⚽', 'name': 'Soccer'},
+    {'id': 'badminton', 'emoji': '🏸', 'name': 'Badminton'},
+  ];
+
+  final List<Map<String, String>> _levels = [
+    {'id': 'starting', 'emoji': '🌱', 'name': 'Starting'},
+    {'id': 'building', 'emoji': '🌿', 'name': 'Building'},
+    {'id': 'active', 'emoji': '🌳', 'name': 'Active'},
+    {'id': 'athletic', 'emoji': '⚡', 'name': 'Athletic'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  @override
+  void dispose() {
+    _preferredNameController.dispose();
+    _birthYearController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        setState(() {
+          _photoUrl = data['photoUrl'];
+          _preferredNameController.text = data['preferredName'] ?? '';
+          _selectedPronoun = data['pronouns'];
+          _birthYearController.text = data['birthYear']?.toString() ?? '';
+          _locationController.text = data['location'] ?? '';
+          
+          _selectedActivities = Set<String>.from(data['activities'] ?? []);
+          _activityLevel = data['activityLevel'];
+          _measurementSystem = data['measurementSystem'] ?? 'metric';
+          
+          _profileVisibility = data['profileVisibility'] ?? 'public';
+          _activitySharing = data['activitySharing'] ?? 'followers';
+          _liveActivitySharing = data['liveActivitySharing'] ?? true;
+          
+          final notifications = data['notifications'] as Map<String, dynamic>? ?? {};
+          _activityReminders = notifications['activityReminders'] ?? true;
+          _communityUpdates = notifications['communityUpdates'] ?? true;
+          _achievementCelebrations = notifications['achievementCelebrations'] ?? false;
+          
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading profile: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'preferredName': _preferredNameController.text.trim(),
+        'pronouns': _selectedPronoun,
+        'birthYear': int.tryParse(_birthYearController.text.trim()),
+        'location': _locationController.text.trim(),
+        'activities': _selectedActivities.toList(),
+        'activityLevel': _activityLevel,
+        'measurementSystem': _measurementSystem,
+        'profileVisibility': _profileVisibility,
+        'activitySharing': _activitySharing,
+        'liveActivitySharing': _liveActivitySharing,
+        'notifications': {
+          'activityReminders': _activityReminders,
+          'communityUpdates': _communityUpdates,
+          'achievementCelebrations': _achievementCelebrations,
+        },
+      });
+
+      // Update display name if changed
+      final preferredName = _preferredNameController.text.trim();
+      if (preferredName.isNotEmpty && preferredName != user.displayName) {
+        await user.updateDisplayName(preferredName);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile saved successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving profile: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _signOut() async {
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const SignInScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: CruizrTheme.background,
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: CruizrTheme.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            _buildHeader(),
+            
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Profile Photo & Name Section
+                    _buildProfileHeader(),
+                    const SizedBox(height: 32),
+                    
+                    // Personal Info Section
+                    _buildSectionTitle('Personal Info'),
+                    const SizedBox(height: 16),
+                    _buildPersonalInfoSection(),
+                    const SizedBox(height: 32),
+                    
+                    // Activities Section
+                    _buildSectionTitle('Activities'),
+                    const SizedBox(height: 16),
+                    _buildActivitiesSection(),
+                    const SizedBox(height: 32),
+                    
+                    // Activity Level Section
+                    _buildSectionTitle('Activity Level'),
+                    const SizedBox(height: 16),
+                    _buildActivityLevelSection(),
+                    const SizedBox(height: 32),
+                    
+                    // Privacy Settings Section
+                    _buildSectionTitle('Privacy & Safety'),
+                    const SizedBox(height: 16),
+                    _buildPrivacySection(),
+                    const SizedBox(height: 32),
+                    
+                    // Notifications Section
+                    _buildSectionTitle('Notifications'),
+                    const SizedBox(height: 16),
+                    _buildNotificationsSection(),
+                    const SizedBox(height: 32),
+                    
+                    // Sign Out Button
+                    _buildSignOutButton(),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const SizedBox(width: 48), // Spacer for balance
+          Text(
+            'Profile',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontFamily: 'Playfair Display',
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          TextButton(
+            onPressed: _isSaving ? null : _saveProfile,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    'Save',
+                    style: TextStyle(
+                      color: CruizrTheme.accentPink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    final user = FirebaseAuth.instance.currentUser;
+    return Center(
+      child: Column(
+        children: [
+          // Profile Photo
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: CruizrTheme.surface,
+              border: Border.all(color: CruizrTheme.border, width: 2),
+              image: _photoUrl != null
+                  ? DecorationImage(
+                      image: NetworkImage(_photoUrl!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: _photoUrl == null
+                ? const Icon(
+                    Icons.person,
+                    size: 48,
+                    color: CruizrTheme.textSecondary,
+                  )
+                : null,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            user?.displayName ?? 'User',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontFamily: 'Playfair Display',
+            ),
+          ),
+          Text(
+            user?.email ?? '',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: CruizrTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+        fontFamily: 'Playfair Display',
+        fontWeight: FontWeight.bold,
+        fontStyle: FontStyle.italic,
+      ),
+    );
+  }
+
+  Widget _buildPersonalInfoSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CruizrTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          // Preferred Name
+          _buildTextField('Preferred Name', _preferredNameController, 'What should we call you?'),
+          const SizedBox(height: 16),
+          
+          // Pronouns Dropdown
+          _buildDropdown('Pronouns', _selectedPronoun, _pronounOptions, 
+            (value) => setState(() => _selectedPronoun = value)),
+          const SizedBox(height: 16),
+          
+          // Birth Year
+          _buildTextField('Birth Year', _birthYearController, 'e.g. 1995', 
+            keyboardType: TextInputType.number),
+          const SizedBox(height: 16),
+          
+          // Location
+          _buildTextField('Location', _locationController, 'City, Country'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, String hint, 
+      {TextInputType? keyboardType}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          style: Theme.of(context).textTheme.bodyLarge,
+          cursorColor: CruizrTheme.primaryDark,
+          decoration: InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDropdown(String label, String? value, List<String> options, 
+      ValueChanged<String?> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isExpanded: true,
+              hint: Text('Select', style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: CruizrTheme.textSecondary,
+              )),
+              items: options.map((String v) {
+                return DropdownMenuItem<String>(value: v, child: Text(v));
+              }).toList(),
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActivitiesSection() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: _activities.map((activity) {
+        final isSelected = _selectedActivities.contains(activity['id']);
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              if (isSelected) {
+                _selectedActivities.remove(activity['id']);
+              } else {
+                _selectedActivities.add(activity['id']!);
+              }
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? CruizrTheme.accentPink : CruizrTheme.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(activity['emoji']!, style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                Text(
+                  activity['name']!,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : CruizrTheme.textPrimary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildActivityLevelSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CruizrTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          // Level Selection
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: _levels.map((level) {
+              final isSelected = _activityLevel == level['id'];
+              return GestureDetector(
+                onTap: () => setState(() => _activityLevel = level['id']),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(level['emoji']!, style: const TextStyle(fontSize: 28)),
+                      const SizedBox(height: 4),
+                      Text(
+                        level['name']!,
+                        style: TextStyle(
+                          color: isSelected ? CruizrTheme.accentPink : CruizrTheme.textPrimary,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+          
+          // Measurement System Toggle
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.all(4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _measurementSystem = 'metric'),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _measurementSystem == 'metric' 
+                            ? CruizrTheme.accentPink : Colors.transparent,
+                        borderRadius: BorderRadius.circular(26),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Metric',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: _measurementSystem == 'metric' 
+                                ? Colors.white : CruizrTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _measurementSystem = 'imperial'),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _measurementSystem == 'imperial' 
+                            ? CruizrTheme.accentPink : Colors.transparent,
+                        borderRadius: BorderRadius.circular(26),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Imperial',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: _measurementSystem == 'imperial' 
+                                ? Colors.white : CruizrTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivacySection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CruizrTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Profile Visibility
+          Text('Profile Visibility', style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 12),
+          _buildThreeWayToggle(
+            options: ['Public', 'Community', 'Private'],
+            values: ['public', 'community', 'private'],
+            selectedValue: _profileVisibility,
+            onChanged: (value) => setState(() => _profileVisibility = value),
+          ),
+          const SizedBox(height: 20),
+          
+          // Activity Sharing
+          Text('Activity Sharing', style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 12),
+          _buildThreeWayToggle(
+            options: ['Everyone', 'Followers', 'Only Me'],
+            values: ['everyone', 'followers', 'only_me'],
+            selectedValue: _activitySharing,
+            onChanged: (value) => setState(() => _activitySharing = value),
+          ),
+          const SizedBox(height: 20),
+          
+          // Live Activity Sharing
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Live Activity Sharing', 
+                        style: Theme.of(context).textTheme.bodyLarge),
+                    Text('Share real-time location with contacts',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: CruizrTheme.textSecondary,
+                        )),
+                  ],
+                ),
+              ),
+              CruizrSwitch(
+                value: _liveActivitySharing,
+                onChanged: (value) => setState(() => _liveActivitySharing = value),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThreeWayToggle({
+    required List<String> options,
+    required List<String> values,
+    required String selectedValue,
+    required ValueChanged<String> onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: List.generate(options.length, (index) {
+          final isSelected = values[index] == selectedValue;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(values[index]),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
+                  borderRadius: BorderRadius.circular(26),
+                ),
+                child: Center(
+                  child: Text(
+                    options[index],
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected ? Colors.white : CruizrTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildNotificationsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CruizrTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          _buildCheckboxTile('Activity reminders', _activityReminders, 
+            (v) => setState(() => _activityReminders = v ?? false)),
+          const Divider(height: 24),
+          _buildCheckboxTile('Community updates', _communityUpdates,
+            (v) => setState(() => _communityUpdates = v ?? false)),
+          const Divider(height: 24),
+          _buildCheckboxTile('Achievement celebrations', _achievementCelebrations,
+            (v) => setState(() => _achievementCelebrations = v ?? false)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCheckboxTile(String title, bool value, ValueChanged<bool?> onChanged) {
+    return Row(
+      children: [
+        SizedBox(
+          height: 24,
+          width: 24,
+          child: Checkbox(
+            value: value,
+            onChanged: onChanged,
+            activeColor: CruizrTheme.accentPink,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(title, style: Theme.of(context).textTheme.bodyLarge),
+      ],
+    );
+  }
+
+  Widget _buildSignOutButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: _signOut,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.red,
+          side: const BorderSide(color: Colors.red),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+        child: const Text('Sign Out'),
+      ),
+    );
+  }
+}

@@ -80,8 +80,9 @@ class _RoutesScreenState extends State<RoutesScreen> {
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Color(0xFF5D4037)),
             onPressed: () {
-               // In main nav context, this might just switch tabs or pop if pushed.
-               // For now, leaving empty or matching design.
+               if (Navigator.of(context).canPop()) {
+                 Navigator.of(context).pop();
+               }
             },
           ),
           const Text(
