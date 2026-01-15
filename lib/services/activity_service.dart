@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/activity_model.dart';
-import 'package:intl/intl.dart';
+
 
 class ActivityService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

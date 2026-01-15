@@ -135,7 +135,7 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
@@ -234,7 +234,7 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                       child: Text(
                         'Forgot Password?',
                         style: TextStyle(
-                          color: CruizrTheme.textSecondary.withOpacity(0.8),
+                          color: CruizrTheme.textSecondary.withValues(alpha: 0.8),
                           decoration: TextDecoration.underline,
                         ),
                       ),

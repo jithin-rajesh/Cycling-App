@@ -161,7 +161,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         children: [
                           Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.accentPink, borderRadius: BorderRadius.circular(2)))),
                           const SizedBox(width: 8),
-                          Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.accentPink.withOpacity(0.5), borderRadius: BorderRadius.circular(2)))),
+                          Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.accentPink.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2)))),
                           const SizedBox(width: 8),
                           Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.surface, borderRadius: BorderRadius.circular(2)))),
                           const SizedBox(width: 8),

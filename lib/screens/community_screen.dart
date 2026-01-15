@@ -94,7 +94,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
                 ],
               ),
               child: Row(
@@ -129,7 +129,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -5)),
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, -5)),
                   ],
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                 ),
@@ -176,10 +176,15 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   Widget _buildUserRow(int rank, Map<String, dynamic> user, {bool isMe = false, bool isSticky = false}) {
     Color rankColor;
-    if (rank == 1) rankColor = const Color(0xFFFFD700); // Gold
-    else if (rank == 2) rankColor = const Color(0xFFC0C0C0); // Silver
-    else if (rank == 3) rankColor = const Color(0xFFCD7F32); // Bronze
-    else rankColor = Colors.grey.withOpacity(0.5);
+    if (rank == 1) {
+      rankColor = const Color(0xFFFFD700); // Gold
+    } else if (rank == 2) {
+      rankColor = const Color(0xFFC0C0C0); // Silver
+    } else if (rank == 3) {
+      rankColor = const Color(0xFFCD7F32); // Bronze
+    } else {
+      rankColor = Colors.grey.withValues(alpha: 0.5);
+    }
 
     final valueDisplay = _selectedMetric == 'distance'
         ? '${user['distance'].toStringAsFixed(1)} km'
@@ -188,9 +193,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       decoration: BoxDecoration(
-        color: isMe && !isSticky ? CruizrTheme.accentPink.withOpacity(0.1) : (isSticky ? Colors.white : Colors.white),
+        color: isMe && !isSticky ? CruizrTheme.accentPink.withValues(alpha: 0.1) : (isSticky ? Colors.white : Colors.white),
         borderRadius: BorderRadius.circular(20),
-        border: isMe ? Border.all(color: CruizrTheme.accentPink.withOpacity(0.5)) : null,
+        border: isMe ? Border.all(color: CruizrTheme.accentPink.withValues(alpha: 0.5)) : null,
       ),
       child: Row(
         children: [

@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../theme/app_theme.dart';
 import '../services/directions_service.dart';
+import '../services/elevation_service.dart';
 import 'follow_route_screen.dart';
 
 // API key is passed via --dart-define=GOOGLE_MAPS_API_KEY=...
@@ -47,6 +48,8 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   
   // Directions service
   late DirectionsService _directionsService;
+  // Elevation service
+  late ElevationService _elevationService;
 
   // Default camera position (can be updated with user location)
   static const LatLng _defaultCenter = LatLng(12.9716, 77.5946); // Bangalore
@@ -103,6 +106,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   void initState() {
     super.initState();
     _directionsService = DirectionsService(apiKey: _mapsApiKey);
+    _elevationService = ElevationService(apiKey: _mapsApiKey);
     _initLocationMarker();
   }
 
@@ -126,7 +130,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     final canvas = Canvas(recorder);
     
     final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.25)
+      ..color = Colors.black.withValues(alpha: 0.25)
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
     
@@ -214,7 +218,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
 
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
-    _mapController?.setMapStyle(_mapStyle);
+    // Style is now handled by GoogleMap widget style parameter
   }
 
   void _onMapTap(LatLng position) {
@@ -274,14 +278,50 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         );
         _distance = result.distanceKm;
         _duration = result.durationMinutes;
+      });
+      
+      // Fetch elevation data for the route
+      await _fetchElevation(result.polylinePoints);
+      
+      setState(() {
         _isLoadingRoute = false;
       });
     } else {
       // Fallback to straight lines if API fails
       _updateStraightLinePolyline();
       _calculateSimpleStats();
+      await _fetchElevation(_waypoints);
       setState(() {
         _isLoadingRoute = false;
+      });
+    }
+  }
+
+  Future<void> _fetchElevation(List<LatLng> points) async {
+    if (points.isEmpty) {
+      setState(() => _elevation = 0);
+      return;
+    }
+
+    // Don't modify loading state here as it's handled by _updateRoute
+    // Just fetch and update elevation
+    
+    final result = await _elevationService.getElevation(
+      routePoints: points,
+      samples: math.min(points.length, 256), // Limit samples to avoid quota issues
+    );
+
+    if (!mounted) return;
+
+    if (result != null) {
+      setState(() {
+        _elevation = result.elevationGainMeters;
+      });
+    } else {
+      // If elevation fetch fails, just set to 0 or keep previous?
+      // Setting to 0 seems safer to avoid misleading data
+      setState(() {
+        _elevation = 0;
       });
     }
   }
@@ -513,6 +553,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                       target: _defaultCenter,
                       zoom: 14,
                     ),
+                    style: _mapStyle,
                     markers: _markers,
                     polylines: _polylines,
                     myLocationEnabled: false,

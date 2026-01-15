@@ -111,7 +111,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 30,
                         offset: const Offset(0, 10),
                       ),
@@ -188,7 +188,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
               // Divider
               Row(
                 children: [
-                   Expanded(child: Divider(color: CruizrTheme.border.withOpacity(0.5))),
+                   Expanded(child: Divider(color: CruizrTheme.border.withValues(alpha: 0.5))),
                    Padding(
                      padding: const EdgeInsets.symmetric(horizontal: 16),
                      child: Text(
@@ -196,7 +196,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12, fontStyle: FontStyle.italic),
                      ),
                    ),
-                   Expanded(child: Divider(color: CruizrTheme.border.withOpacity(0.5))),
+                   Expanded(child: Divider(color: CruizrTheme.border.withValues(alpha: 0.5))),
                 ],
               ),
               const SizedBox(height: 24),

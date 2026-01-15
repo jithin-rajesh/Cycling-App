@@ -80,7 +80,7 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
       Polyline(
         polylineId: const PolylineId('planned_route'),
         points: widget.routePoints,
-        color: CruizrTheme.accentPink.withOpacity(0.5),
+        color: CruizrTheme.accentPink.withValues(alpha: 0.5),
         width: 6,
       ),
     );
@@ -117,7 +117,7 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
     final canvas = Canvas(recorder);
     
     final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.25)
+      ..color = Colors.black.withValues(alpha: 0.25)
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
     
@@ -216,7 +216,7 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
             position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
             icon: _locationMarkerIcon!,
             anchor: const Offset(0.5, 1.0),
-            zIndex: 999,
+            zIndexInt: 999,
           ),
         );
       });
@@ -352,7 +352,7 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
 
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
-    _mapController?.setMapStyle(_mapStyle);
+    // Style is now handled by GoogleMap widget style parameter
   }
 
   @override
@@ -374,6 +374,7 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
                         : const LatLng(12.9716, 77.5946),
                       zoom: 14,
                     ),
+                    style: _mapStyle,
                     markers: _markers,
                     polylines: _polylines,
                     myLocationEnabled: false,
@@ -481,7 +482,7 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -501,7 +502,7 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

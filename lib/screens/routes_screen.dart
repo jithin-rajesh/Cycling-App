@@ -214,7 +214,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                      if (!isSelected)
-                       BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+                       BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))
                   ],
                 ),
                 child: Text(
@@ -274,7 +274,7 @@ class _RouteCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -289,14 +289,14 @@ class _RouteCard extends StatelessWidget {
                 Container(
                   height: 120,
                   decoration: BoxDecoration(
-                    color: CruizrTheme.accentPink.withOpacity(0.1),
+                    color: CruizrTheme.accentPink.withValues(alpha: 0.1),
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                   ),
                   child: Center(
                     child: Icon(
                       Icons.route,
                       size: 48,
-                      color: CruizrTheme.accentPink.withOpacity(0.5),
+                      color: CruizrTheme.accentPink.withValues(alpha: 0.5),
                     ),
                   ),
                 ),

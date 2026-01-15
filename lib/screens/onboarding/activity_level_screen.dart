@@ -166,7 +166,7 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                             ),
                             boxShadow: isSelected ? [
                               BoxShadow(
-                                color: CruizrTheme.accentPink.withOpacity(0.1),
+                                color: CruizrTheme.accentPink.withValues(alpha: 0.1),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -193,7 +193,7 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                                 level['description']!,
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   fontSize: 12,
-                                  color: isSelected ? CruizrTheme.accentPink.withOpacity(0.7) : CruizrTheme.textSecondary,
+                                  color: isSelected ? CruizrTheme.accentPink.withValues(alpha: 0.7) : CruizrTheme.textSecondary,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -232,7 +232,7 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                                 borderRadius: BorderRadius.circular(26),
                                 boxShadow: _measurementSystem == 'metric' ? [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
+                                    color: Colors.black.withValues(alpha: 0.05),
                                     blurRadius: 5,
                                     offset: const Offset(0, 2),
                                   ),
@@ -261,7 +261,7 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                                 borderRadius: BorderRadius.circular(26),
                                 boxShadow: _measurementSystem == 'imperial' ? [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
+                                    color: Colors.black.withValues(alpha: 0.05),
                                     blurRadius: 5,
                                     offset: const Offset(0, 2),
                                   ),

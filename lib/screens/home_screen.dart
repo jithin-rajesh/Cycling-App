@@ -199,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
                    const SizedBox(width: 12),
                    Expanded(child: _buildStatCard(
                      Icons.local_fire_department, 
-                     '${(_stats['calories'] as double).toStringAsFixed(0)}', 
+                     (_stats['calories'] as double).toStringAsFixed(0), 
                      'Calories', 
                      Colors.orange
                    )),

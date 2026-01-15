@@ -96,7 +96,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
     final canvas = Canvas(recorder);
     
     final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.25)
+      ..color = Colors.black.withValues(alpha: 0.25)
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
     
@@ -176,7 +176,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
   void dispose() {
     _timer?.cancel();
     _positionSubscription?.cancel();
-    _mapController?.dispose();
+    // _mapController?.dispose(); // Not needed and causes Web errors
     super.dispose();
   }
 
@@ -292,7 +292,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
   void _showSummaryDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: CruizrTheme.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
@@ -313,7 +313,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
         actions: [
             TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
               Navigator.of(context).pop();
             },
             child: const Text('Discard'),
@@ -338,10 +338,9 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
                 await ActivityService().saveActivity(activity);
               }
               
-              if (mounted) {
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pop(); // Go back home
-              }
+              if (!mounted) return;
+              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pop(); // Go back home
             },
             style: FilledButton.styleFrom(
               backgroundColor: CruizrTheme.accentPink,
@@ -390,14 +389,16 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
 
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
-    _mapController?.setMapStyle(_mapStyle);
-    
     if (_currentPosition != null) {
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(
-          LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-        ),
-      );
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _mapController?.animateCamera(
+            CameraUpdate.newLatLng(
+              LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            ),
+          );
+        }
+      });
     }
   }
 
@@ -425,6 +426,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
                     ),
                     polylines: _polylines,
                     markers: _markers,
+                    style: _mapStyle,
                     myLocationEnabled: false,
                     myLocationButtonEnabled: false,
                     zoomControlsEnabled: false,
@@ -528,7 +530,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -548,7 +550,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -648,8 +650,8 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
               boxShadow: [
                 BoxShadow(
                   color: isPrimary
-                      ? CruizrTheme.accentPink.withOpacity(0.3)
-                      : Colors.black.withOpacity(0.1),
+                      ? CruizrTheme.accentPink.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.1),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),

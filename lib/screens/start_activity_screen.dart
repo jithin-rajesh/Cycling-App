@@ -222,7 +222,7 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -307,7 +307,7 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.6), // Muted look
+        color: color.withValues(alpha: 0.6), // Muted look
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

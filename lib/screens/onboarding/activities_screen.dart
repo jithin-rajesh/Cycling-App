@@ -150,7 +150,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                             ),
                             boxShadow: [
                                 BoxShadow(
-                                  color: Colors.brown.withOpacity(0.03),
+                                  color: Colors.brown.withValues(alpha: 0.03),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -194,7 +194,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                  begin: Alignment.topCenter,
                  end: Alignment.bottomCenter,
                  colors: [
-                   CruizrTheme.background.withOpacity(0),
+                   CruizrTheme.background.withValues(alpha: 0),
                    CruizrTheme.background,
                  ],
                  stops: const [0.0, 0.3],

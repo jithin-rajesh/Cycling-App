@@ -57,7 +57,7 @@ class CruizrTheme {
         filled: true,
         fillColor: surface,
         hintStyle: GoogleFonts.lato(
-          color: textSecondary.withOpacity(0.7),
+          color: textSecondary.withValues(alpha: 0.7),
           fontSize: 14,
         ),
         labelStyle: GoogleFonts.lato(
