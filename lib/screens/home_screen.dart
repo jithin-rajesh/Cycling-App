@@ -3,6 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
+import '../services/activity_service.dart';
+import '../models/activity_model.dart';
+import 'start_activity_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,13 +18,41 @@ class _HomeScreenState extends State<HomeScreen> {
   String _greeting = 'Welcome back!';
   String _activitySuggestion = 'Ready to move?';
   
+  Map<String, dynamic> _stats = {
+    'count': 0,
+    'time': Duration.zero,
+    'calories': 0.0,
+  };
+  List<ActivityModel> _recentActivities = [];
+
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    await _loadUserProfile();
+    await _loadStats();
+    await _loadRecentActivities();
+  }
+
+  Future<void> _loadStats() async {
+    final stats = await ActivityService().getWeeklyStats();
+    setState(() {
+      _stats = stats;
+    });
+  }
+
+  Future<void> _loadRecentActivities() async {
+    final activities = await ActivityService().getRecentActivities();
+    setState(() {
+      _recentActivities = activities;
+    });
   }
 
   Future<void> _loadUserProfile() async {
+    // Existing logic...
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
@@ -30,7 +61,6 @@ class _HomeScreenState extends State<HomeScreen> {
         if (data != null && data.containsKey('activities')) {
            final List<dynamic> activities = data['activities'];
            if (activities.isNotEmpty) {
-             // Basic logic: pick first activity or random
              final favorite = activities.first.toString();
              setState(() {
                _activitySuggestion = "Hey, let's $favorite";
@@ -129,7 +159,10 @@ class _HomeScreenState extends State<HomeScreen> {
                      ),
                      const Spacer(),
                      OutlinedButton(
-                       onPressed: () {},
+                       onPressed: () {
+                          // Navigate to Start Activity Screen via main navigation or direct
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StartActivityScreen()));
+                       },
                        style: OutlinedButton.styleFrom(
                          foregroundColor: Colors.white,
                          side: const BorderSide(color: Colors.white),
@@ -150,41 +183,93 @@ class _HomeScreenState extends State<HomeScreen> {
                const SizedBox(height: 16),
                Row(
                  children: [
-                   Expanded(child: _buildStatCard(Icons.local_activity, '5', 'Activities', CruizrTheme.accentPink)),
+                   Expanded(child: _buildStatCard(
+                     Icons.local_activity, 
+                     '${_stats['count']}', 
+                     'Activities', 
+                     CruizrTheme.accentPink
+                   )),
                    const SizedBox(width: 12),
-                   Expanded(child: _buildStatCard(Icons.timer, '4.5h', 'Time', const Color(0xFF5D4037))),
+                   Expanded(child: _buildStatCard(
+                     Icons.timer, 
+                     _formatDuration(_stats['time'] as Duration), 
+                     'Time', 
+                     const Color(0xFF5D4037)
+                   )),
                    const SizedBox(width: 12),
-                   Expanded(child: _buildStatCard(Icons.local_fire_department, '2,150', 'Calories', Colors.orange)),
+                   Expanded(child: _buildStatCard(
+                     Icons.local_fire_department, 
+                     '${(_stats['calories'] as double).toStringAsFixed(0)}', 
+                     'Calories', 
+                     Colors.orange
+                   )),
                  ],
                ),
                const SizedBox(height: 32),
 
                // Recent Activities
-               Row(
-                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                 children: [
-                   Text(
-                     "Recent Activities",
-                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 18, fontStyle: FontStyle.italic),
+               if (_recentActivities.isNotEmpty) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Recent Activities",
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 18, fontStyle: FontStyle.italic),
+                    ),
+                    TextButton(
+                      onPressed: () {},
+                      child: Text('See all →', style: TextStyle(color: CruizrTheme.accentPink)),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 8),
+                
+                ..._recentActivities.map((activity) => Column(
+                  children: [
+                    _buildActivityRow(
+                      Icons.directions_bike, 
+                      activity.type, 
+                      '${activity.distance.toStringAsFixed(1)} km • ${_formatDurationShort(activity.duration)} • ${activity.calories.toStringAsFixed(0)} cal', 
+                      _getRelativeTime(activity.startTime)
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                )),
+               ] else ...[
+                 Center(
+                   child: Padding(
+                     padding: const EdgeInsets.all(16.0),
+                     child: Text("No recent activities yet. Start moving!", style: TextStyle(color: CruizrTheme.textSecondary)),
                    ),
-                   TextButton(
-                     onPressed: () {},
-                     child: Text('See all →', style: TextStyle(color: CruizrTheme.accentPink)),
-                   )
-                 ],
-               ),
-               const SizedBox(height: 8),
-               
-               _buildActivityRow(Icons.directions_bike, 'Morning Ride', '25.5 km • 1h 15m • 320 cal', 'Today'),
-               const SizedBox(height: 12),
-               _buildActivityRow(Icons.self_improvement, 'Evening Yoga', '45 min • 120 cal', 'Yesterday'),
-               const SizedBox(height: 12),
-               _buildActivityRow(Icons.directions_run, 'Park Run', '5.2 km • 28m • 285 cal', '2 days ago'),
+                 )
+               ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  String _formatDuration(Duration d) {
+    if (d.inHours > 0) {
+      return '${d.inHours}h ${d.inMinutes.remainder(60)}m';
+    }
+    return '${d.inMinutes}m';
+  }
+
+  String _formatDurationShort(Duration d) {
+     if (d.inHours > 0) {
+      return '${d.inHours}h ${d.inMinutes.remainder(60)}m';
+    }
+    return '${d.inMinutes}m';
+  }
+
+  String _getRelativeTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${diff.inDays} days ago';
   }
 
   Widget _buildStatCard(IconData icon, String value, String label, Color color) {

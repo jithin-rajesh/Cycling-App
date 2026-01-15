@@ -7,6 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'routes_screen.dart';
 import 'start_activity_screen.dart';
 
+import 'community_screen.dart';
+
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
@@ -21,7 +23,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     const HomeScreen(),
     const RoutesScreen(),
     const Scaffold(body: Center(child: Text('Start'))), // Floating button placeholder
-    const Scaffold(body: Center(child: Text('Community'))),
+    const CommunityScreen(),
     const ProfileScreen(),
   ];
 
