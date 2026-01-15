@@ -3,11 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 
 /// Service to get actual road-following routes from Google Directions API.
 /// 
-/// Note: On web platforms, the Directions API HTTP calls are blocked by CORS.
-/// The service returns null on web, and the app falls back to straight lines.
+/// On web platforms, API calls are routed through a Firebase Cloud Function
+/// proxy to bypass CORS restrictions. On mobile/desktop, direct API calls
+/// are used for better performance.
 class DirectionsService {
   final String apiKey;
 
@@ -27,10 +29,13 @@ class DirectionsService {
   }) async {
     if (waypoints.length < 2) return null;
     
-    // On web, CORS blocks direct API calls - return null to use fallback
+    // On web, use Firebase Cloud Function proxy to bypass CORS
     if (kIsWeb) {
-      debugPrint('DirectionsService: Skipping API call on web (CORS)');
-      return null;
+      return _getRouteViaProxy(
+        waypoints: waypoints,
+        routeType: routeType,
+        travelMode: travelMode,
+      );
     }
 
     try {
@@ -156,6 +161,116 @@ class DirectionsService {
         return 'driving';
       default:
         return 'bicycling';
+    }
+  }
+
+  /// Fetches a route via Firebase Cloud Function proxy (for web).
+  Future<DirectionsResult?> _getRouteViaProxy({
+    required List<LatLng> waypoints,
+    required int routeType,
+    int travelMode = 0,
+  }) async {
+    try {
+      // Build waypoints list based on route type
+      List<LatLng> routePoints = List.from(waypoints);
+      
+      final origin = routePoints.first;
+      LatLng destination;
+      List<String>? intermediateWaypoints;
+
+      if (routeType == 0) {
+        // Loop: Route back to start
+        destination = origin;
+        if (routePoints.length > 1) {
+          intermediateWaypoints = routePoints
+              .sublist(1)
+              .map((p) => '${p.latitude},${p.longitude}')
+              .toList();
+        }
+      } else if (routeType == 2) {
+        // Out & Back: Go to last point
+        destination = routePoints.last;
+        if (routePoints.length > 2) {
+          intermediateWaypoints = routePoints
+              .sublist(1, routePoints.length - 1)
+              .map((p) => '${p.latitude},${p.longitude}')
+              .toList();
+        }
+      } else {
+        // One Way: Just go from first to last
+        destination = routePoints.last;
+        if (routePoints.length > 2) {
+          intermediateWaypoints = routePoints
+              .sublist(1, routePoints.length - 1)
+              .map((p) => '${p.latitude},${p.longitude}')
+              .toList();
+        }
+      }
+
+      // Call the Cloud Function
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('getDirections');
+      
+      final result = await callable.call<Map<String, dynamic>>({
+        'origin': '${origin.latitude},${origin.longitude}',
+        'destination': '${destination.latitude},${destination.longitude}',
+        'waypoints': intermediateWaypoints,
+        'mode': _getTravelMode(travelMode),
+      });
+
+      final responseData = result.data;
+      
+      if (responseData['success'] != true) {
+        final status = responseData['status'] ?? 'UNKNOWN';
+        final error = responseData['error'] ?? 'Unknown error';
+        debugPrint('Directions proxy error: $status - $error');
+        // ZERO_RESULTS means no route found (points too close, no roads, etc.)
+        // This is not a fatal error, the app should fall back to straight lines
+        return null;
+      }
+
+      final data = responseData['data'];
+      final routes = data['routes'] as List;
+      if (routes.isEmpty) return null;
+
+      final route = routes[0];
+      final legs = route['legs'] as List;
+      
+      // Calculate total distance and duration
+      double totalDistanceMeters = 0;
+      int totalDurationSeconds = 0;
+      
+      for (final leg in legs) {
+        totalDistanceMeters += (leg['distance']['value'] as num).toDouble();
+        totalDurationSeconds += leg['duration']['value'] as int;
+      }
+
+      // Decode the polyline
+      final overviewPolyline = route['overview_polyline']['points'];
+      final polylinePoints = PolylinePoints();
+      final points = polylinePoints.decodePolyline(overviewPolyline);
+      
+      List<LatLng> polylineCoordinates = points
+          .map((point) => LatLng(point.latitude, point.longitude))
+          .toList();
+
+      // For Out & Back, append the reverse route
+      if (routeType == 2) {
+        totalDistanceMeters *= 2;
+        totalDurationSeconds *= 2;
+        
+        final returnPoints = polylineCoordinates.reversed.skip(1).toList();
+        polylineCoordinates.addAll(returnPoints);
+      }
+
+      return DirectionsResult(
+        polylinePoints: polylineCoordinates,
+        distanceMeters: totalDistanceMeters,
+        durationSeconds: totalDurationSeconds,
+      );
+    } catch (e) {
+      debugPrint('DirectionsService proxy error: $e');
+      return null;
     }
   }
 }

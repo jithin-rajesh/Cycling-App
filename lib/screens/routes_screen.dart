@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../theme/app_theme.dart';
+import 'follow_route_screen.dart';
 
 class RoutesScreen extends StatefulWidget {
   const RoutesScreen({super.key});
@@ -9,66 +13,155 @@ class RoutesScreen extends StatefulWidget {
 }
 
 class _RoutesScreenState extends State<RoutesScreen> {
-  final List<String> _filters = ["All Activities", "Cycling", "Running", "Hiking"];
+  final List<String> _filters = ["My Routes", "All Routes"];
   int _selectedFilterIndex = 0;
-
-  final List<Map<String, dynamic>> _routes = [
-    {
-      "title": "Riverside Path",
-      "distance": "15.5 km",
-      "elevation": "50m",
-      "duration": "~45 min",
-      "rating": 4.8,
-      "reviews": 124,
-      "difficulty": "Easy",
-      "color": "green", // Badge color logic can be refined
-    },
-    {
-      "title": "Hill Circuit",
-      "distance": "8.2 km",
-      "elevation": "180m",
-      "duration": "~50 min",
-      "rating": 4.6,
-      "reviews": 89,
-      "difficulty": "Moderate",
-      "color": "orange",
-    },
-    {
-      "title": "Mountain Trail",
-      "distance": "12.0 km",
-      "elevation": "450m",
-      "duration": "~3h",
-      "rating": 4.9,
-      "reviews": 67,
-      "difficulty": "Hard",
-      "color": "red",
-    },
-  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CruizrTheme.background, // Assuming generic background color from theme
+      backgroundColor: CruizrTheme.background,
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(),
             _buildFilters(),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.all(24),
-                itemCount: _routes.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 20),
-                itemBuilder: (context, index) {
-                  final route = _routes[index];
-                  return _RouteCard(route: route);
-                },
-              ),
+              child: _buildRoutesList(),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildRoutesList() {
+    final user = FirebaseAuth.instance.currentUser;
+    
+    // Build query - for "My Routes", filter by userId first, then order
+    // For "All Routes", just order by createdAt
+    Query<Map<String, dynamic>> query;
+    
+    if (_selectedFilterIndex == 0 && user != null) {
+      // My Routes - filter first, then order
+      query = FirebaseFirestore.instance
+          .collection('routes')
+          .where('userId', isEqualTo: user.uid)
+          .orderBy('createdAt', descending: true);
+    } else {
+      // All Routes - just order
+      query = FirebaseFirestore.instance
+          .collection('routes')
+          .orderBy('createdAt', descending: true);
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: query.snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        final routes = snapshot.data?.docs ?? [];
+
+        if (routes.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.route, size: 64, color: CruizrTheme.textSecondary),
+                const SizedBox(height: 16),
+                Text(
+                  'No saved routes yet',
+                  style: TextStyle(
+                    color: CruizrTheme.textSecondary,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Create a route to get started!',
+                  style: TextStyle(
+                    color: CruizrTheme.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(24),
+          itemCount: routes.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 20),
+          itemBuilder: (context, index) {
+            final routeData = routes[index].data();
+            final routeId = routes[index].id;
+            return _RouteCard(
+              route: routeData,
+              routeId: routeId,
+              onTap: () => _navigateToRoute(routeData),
+              onDelete: () => _deleteRoute(routeId, routeData['name']),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _navigateToRoute(Map<String, dynamic> routeData) {
+    // Convert stored data back to LatLng
+    final routePointsList = (routeData['routePoints'] as List?)?.map((p) {
+      return LatLng(p['lat'] as double, p['lng'] as double);
+    }).toList() ?? [];
+
+    final waypointsList = (routeData['waypoints'] as List?)?.map((p) {
+      return LatLng(p['lat'] as double, p['lng'] as double);
+    }).toList() ?? [];
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FollowRouteScreen(
+          routePoints: routePointsList,
+          waypoints: waypointsList,
+          distanceKm: (routeData['distanceKm'] as num?)?.toDouble() ?? 0.0,
+          durationMinutes: (routeData['durationMinutes'] as num?)?.toInt() ?? 0,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteRoute(String routeId, String? routeName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Route?'),
+        content: Text('Are you sure you want to delete "${routeName ?? 'this route'}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await FirebaseFirestore.instance.collection('routes').doc(routeId).delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Route deleted')),
+        );
+      }
+    }
   }
 
   Widget _buildHeader() {
@@ -91,14 +184,11 @@ class _RoutesScreenState extends State<RoutesScreen> {
               fontFamily: 'Playfair Display',
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF2D2D2D), // Dark text
+              color: Color(0xFF2D2D2D),
               fontStyle: FontStyle.italic,
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Color(0xFF5D4037)), // Light purple/grey in design? Using brownish for now
-            onPressed: () {},
-          ),
+          const SizedBox(width: 48), // Balance the header
         ],
       ),
     );
@@ -120,7 +210,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFFD67B80) : Colors.white, // Salmon pink if selected
+                  color: isSelected ? CruizrTheme.accentPink : Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                      if (!isSelected)
@@ -145,117 +235,146 @@ class _RoutesScreenState extends State<RoutesScreen> {
 
 class _RouteCard extends StatelessWidget {
   final Map<String, dynamic> route;
+  final String routeId;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
 
-  const _RouteCard({required this.route});
+  const _RouteCard({
+    required this.route,
+    required this.routeId,
+    required this.onTap,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image / Map placeholder
-          Stack(
-            children: [
-              Container(
-                height: 150,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF0EBE8), // Placeholder beige
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                // Real implementation would use an Image.asset or network image here
-              ),
-              Positioned(
-                top: 16,
-                right: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    final name = route['name'] as String? ?? 'Unnamed Route';
+    final distanceKm = (route['distanceKm'] as num?)?.toDouble() ?? 0.0;
+    final durationMinutes = (route['durationMinutes'] as num?)?.toInt() ?? 0;
+    final elevation = (route['elevation'] as num?)?.toInt() ?? 0;
+    final routeType = route['routeType'] as int? ?? 1;
+
+    String routeTypeLabel;
+    switch (routeType) {
+      case 0:
+        routeTypeLabel = 'Loop';
+        break;
+      case 2:
+        routeTypeLabel = 'Out & Back';
+        break;
+      default:
+        routeTypeLabel = 'One Way';
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Route preview placeholder
+            Stack(
+              children: [
+                Container(
+                  height: 120,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    color: CruizrTheme.accentPink.withOpacity(0.1),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                   ),
-                  child: Text(
-                    route['difficulty'],
-                    style: TextStyle(
-                      color: _getDifficultyColor(route['difficulty']),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                  child: Center(
+                    child: Icon(
+                      Icons.route,
+                      size: 48,
+                      color: CruizrTheme.accentPink.withOpacity(0.5),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          
-          // Info Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  route['title'],
-                  style: const TextStyle(
-                    fontFamily: 'Playfair Display',
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D2D2D),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _buildStat(Icons.directions_bike, route['distance']), // Assuming cycling icon for now, logic can change based on filter
-                    const SizedBox(width: 16),
-                    _buildStat(Icons.expand, route['elevation'], iconColor: Colors.blue),
-                    const SizedBox(width: 16),
-                    _buildStat(Icons.timer_outlined, route['duration']),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    ...List.generate(5, (index) {
-                      final rating = route['rating'] as double;
-                      return Icon(
-                        index < rating.floor() ? Icons.star_rounded : Icons.star_outline_rounded,
-                        color: Colors.amber,
-                        size: 20,
-                      );
-                    }),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${route['rating']} (${route['reviews']} reviews)',
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      routeTypeLabel,
                       style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 13,
+                        color: CruizrTheme.accentPink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ],
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: GestureDetector(
+                    onTap: onDelete,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            
+            // Info Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2D2D2D),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _buildStat(Icons.straighten, '${distanceKm.toStringAsFixed(1)} km'),
+                      const SizedBox(width: 16),
+                      _buildStat(Icons.terrain, '$elevation m'),
+                      const SizedBox(width: 16),
+                      _buildStat(Icons.timer_outlined, '$durationMinutes min'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStat(IconData icon, String text, {Color? iconColor}) {
+  Widget _buildStat(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: iconColor ?? const Color(0xFFD67B80)),
+        Icon(icon, size: 16, color: CruizrTheme.accentPink),
         const SizedBox(width: 6),
         Text(
           text,
@@ -268,13 +387,5 @@ class _RouteCard extends StatelessWidget {
       ],
     );
   }
-
-  Color _getDifficultyColor(String difficulty) {
-    switch (difficulty) {
-      case 'Easy': return Colors.green;
-      case 'Moderate': return Colors.orange;
-      case 'Hard': return Colors.red;
-      default: return Colors.blue;
-    }
-  }
 }
+

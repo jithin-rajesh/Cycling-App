@@ -456,7 +456,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             });
           },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: isSelected ? CruizrTheme.accentPink : CruizrTheme.surface,
@@ -465,18 +466,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
                 width: 2,
               ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: CruizrTheme.accentPink.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(activity['emoji']!, style: const TextStyle(fontSize: 20)),
+                AnimatedScale(
+                  scale: isSelected ? 1.1 : 1.0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutBack,
+                  child: Text(activity['emoji']!, style: const TextStyle(fontSize: 20)),
+                ),
                 const SizedBox(width: 8),
-                Text(
-                  activity['name']!,
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
                   style: TextStyle(
                     color: isSelected ? Colors.white : CruizrTheme.textPrimary,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 14,
                   ),
+                  child: Text(activity['name']!),
                 ),
               ],
             ),
@@ -504,7 +522,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return GestureDetector(
                 onTap: () => setState(() => _activityLevel = level['id']),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: isSelected ? Colors.white : Colors.transparent,
@@ -513,18 +532,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
                       width: 2,
                     ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: CruizrTheme.accentPink.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Column(
                     children: [
-                      Text(level['emoji']!, style: const TextStyle(fontSize: 28)),
+                      AnimatedScale(
+                        scale: isSelected ? 1.15 : 1.0,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutBack,
+                        child: Text(level['emoji']!, style: const TextStyle(fontSize: 28)),
+                      ),
                       const SizedBox(height: 4),
-                      Text(
-                        level['name']!,
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
                         style: TextStyle(
                           color: isSelected ? CruizrTheme.accentPink : CruizrTheme.textPrimary,
                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                           fontSize: 12,
                         ),
+                        child: Text(level['name']!),
                       ),
                     ],
                   ),
@@ -534,65 +569,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 20),
           
-          // Measurement System Toggle
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            padding: const EdgeInsets.all(4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _measurementSystem = 'metric'),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: _measurementSystem == 'metric' 
-                            ? CruizrTheme.accentPink : Colors.transparent,
-                        borderRadius: BorderRadius.circular(26),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Metric',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _measurementSystem == 'metric' 
-                                ? Colors.white : CruizrTheme.textSecondary,
-                          ),
+          // Measurement System Toggle with Sliding Indicator
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final segmentWidth = (constraints.maxWidth - 8) / 2;
+              final selectedIndex = _measurementSystem == 'metric' ? 0 : 1;
+              return Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Stack(
+                  children: [
+                    // Sliding Indicator
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      left: selectedIndex * segmentWidth,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: segmentWidth,
+                        decoration: BoxDecoration(
+                          color: CruizrTheme.accentPink,
+                          borderRadius: BorderRadius.circular(26),
+                          boxShadow: [
+                            BoxShadow(
+                              color: CruizrTheme.accentPink.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _measurementSystem = 'imperial'),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: _measurementSystem == 'imperial' 
-                            ? CruizrTheme.accentPink : Colors.transparent,
-                        borderRadius: BorderRadius.circular(26),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Imperial',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _measurementSystem == 'imperial' 
-                                ? Colors.white : CruizrTheme.textSecondary,
+                    // Labels
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _measurementSystem = 'metric'),
+                            behavior: HitTestBehavior.opaque,
+                            child: Center(
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOutCubic,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: _measurementSystem == 'metric' 
+                                      ? Colors.white : CruizrTheme.textSecondary,
+                                ),
+                                child: const Text('Metric'),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _measurementSystem = 'imperial'),
+                            behavior: HitTestBehavior.opaque,
+                            child: Center(
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOutCubic,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: _measurementSystem == 'imperial' 
+                                      ? Colors.white : CruizrTheme.textSecondary,
+                                ),
+                                child: const Text('Imperial'),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -665,40 +724,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String selectedValue,
     required ValueChanged<String> onChanged,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: Row(
-        children: List.generate(options.length, (index) {
-          final isSelected = values[index] == selectedValue;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(values[index]),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
-                  borderRadius: BorderRadius.circular(26),
-                ),
-                child: Center(
-                  child: Text(
-                    options[index],
-                    style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color: isSelected ? Colors.white : CruizrTheme.textSecondary,
-                      fontSize: 12,
-                    ),
+    final selectedIndex = values.indexOf(selectedValue);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final segmentWidth = (constraints.maxWidth - 8) / options.length;
+        return Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          padding: const EdgeInsets.all(4),
+          child: Stack(
+            children: [
+              // Sliding Indicator
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                left: selectedIndex * segmentWidth,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: segmentWidth,
+                  decoration: BoxDecoration(
+                    color: CruizrTheme.accentPink,
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [
+                      BoxShadow(
+                        color: CruizrTheme.accentPink.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
-          );
-        }),
-      ),
+              // Labels
+              Row(
+                children: List.generate(options.length, (index) {
+                  final isSelected = values[index] == selectedValue;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => onChanged(values[index]),
+                      behavior: HitTestBehavior.opaque,
+                      child: Center(
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOutCubic,
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                            color: isSelected ? Colors.white : CruizrTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                          child: Text(options[index]),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

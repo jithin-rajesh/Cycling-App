@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -19,6 +20,8 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
   Position? _currentPosition;
   final List<LatLng> _routePoints = [];
   final Set<Polyline> _polylines = {};
+  final Set<Marker> _markers = {};
+  BitmapDescriptor? _locationMarkerIcon;
   
   // Tracking state
   bool _isTracking = false;
@@ -78,10 +81,90 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
 ]
 ''';
 
+  Future<BitmapDescriptor> _createLocationMarkerIcon() async {
+    const double circleSize = 40;
+    const double tipHeight = 16;
+    const double shadowOffset = 3;
+    const double padding = 6; // Extra space for shadow
+    const double totalHeight = circleSize + tipHeight + padding;
+    const double totalWidth = circleSize + padding;
+    const double borderWidth = 4;
+    const double centerX = totalWidth / 2;
+    const double centerY = circleSize / 2 + 2;
+    
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    
+    final shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.25)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    
+    final whitePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    
+    final pinkPaint = Paint()
+      ..color = CruizrTheme.accentPink
+      ..style = PaintingStyle.fill;
+    
+    // Draw shadow tip
+    final shadowTipPath = Path();
+    shadowTipPath.moveTo(centerX - 8 + shadowOffset, centerY + circleSize / 2 - 6 + shadowOffset);
+    shadowTipPath.lineTo(centerX + 8 + shadowOffset, centerY + circleSize / 2 - 6 + shadowOffset);
+    shadowTipPath.lineTo(centerX + shadowOffset, centerY + tipHeight + circleSize / 2 - 10 + shadowOffset);
+    shadowTipPath.close();
+    canvas.drawPath(shadowTipPath, shadowPaint);
+    
+    // Draw shadow circle
+    canvas.drawCircle(Offset(centerX + shadowOffset, centerY + shadowOffset), circleSize / 2, shadowPaint);
+    
+    // Draw white tip (triangle pointing down)
+    final tipPath = Path();
+    tipPath.moveTo(centerX - 8, centerY + circleSize / 2 - 6);
+    tipPath.lineTo(centerX + 8, centerY + circleSize / 2 - 6);
+    tipPath.lineTo(centerX, centerY + tipHeight + circleSize / 2 - 10);
+    tipPath.close();
+    canvas.drawPath(tipPath, whitePaint);
+    
+    // Draw white outer circle (border)
+    canvas.drawCircle(Offset(centerX, centerY), circleSize / 2, whitePaint);
+    
+    // Draw pink inner circle
+    canvas.drawCircle(Offset(centerX, centerY), circleSize / 2 - borderWidth, pinkPaint);
+    
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(totalWidth.toInt(), totalHeight.toInt());
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
+  }
+
+  void _updateLocationMarker() {
+    if (_currentPosition != null && _locationMarkerIcon != null) {
+      setState(() {
+        _markers.removeWhere((m) => m.markerId.value == 'current_location');
+        _markers.add(
+          Marker(
+            markerId: const MarkerId('current_location'),
+            position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            icon: _locationMarkerIcon!,
+            anchor: const Offset(0.5, 1.0),
+          ),
+        );
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _checkPermissions();
+    _initLocationMarker();
+  }
+
+  Future<void> _initLocationMarker() async {
+    _locationMarkerIcon = await _createLocationMarkerIcon();
     _getCurrentLocation();
   }
 
@@ -122,6 +205,8 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
     setState(() {
       _currentPosition = position;
     });
+    
+    _updateLocationMarker();
     
     _mapController?.animateCamera(
       CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
@@ -168,6 +253,8 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
           _updatePolyline();
           _currentPosition = position;
         });
+        
+        _updateLocationMarker();
         
         // Keep camera centered on user
         _mapController?.animateCamera(
@@ -337,7 +424,8 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
                       zoom: 16,
                     ),
                     polylines: _polylines,
-                    myLocationEnabled: true,
+                    markers: _markers,
+                    myLocationEnabled: false,
                     myLocationButtonEnabled: false,
                     zoomControlsEnabled: false,
                     mapToolbarEnabled: false,
