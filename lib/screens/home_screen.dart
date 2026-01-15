@@ -12,7 +12,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _greeting = 'Welcome back!';
+  final String _greeting = 'Welcome back!';
   String _activitySuggestion = 'Ready to move?';
   
   @override

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import 'routes_screen.dart';
 import 'start_activity_screen.dart';

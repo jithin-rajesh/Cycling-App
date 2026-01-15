@@ -1,74 +1,189 @@
-# Project Setup Guide
-
-Welcome to the Cruizr project! Follow these steps to get the app running on your local machine.
+# Cruizr App - Complete Setup Guide
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+1. **Git**: [Download Git](https://git-scm.com/downloads)
+2. **Flutter SDK**: [Install Flutter](https://docs.flutter.dev/get-started/install)
+3. **Android Studio**: [Download Android Studio](https://developer.android.com/studio)
 
-1.  **Git**: [Download Git](https://git-scm.com/downloads)
-2.  **Flutter SDK**: [Install Flutter](https://docs.flutter.dev/get-started/install)
-    *   Ensure `flutter doctor` runs without major issues.
-3.  **Visual Studio Code** (Recommended) or Android Studio.
-    *   Install the **Flutter** and **Dart** extensions.
+---
 
-## Installation
+## Part 1: Android Studio Setup
 
-1.  **Clone the repository**:
-    ```bash
-    git clone <repository-url>
-    cd cyclingapp
-    ```
+### 1.1 Install Android Studio
+1. Download and install Android Studio
+2. During setup, ensure you install:
+   - Android SDK
+   - Android SDK Command-line Tools
+   - Android SDK Build-Tools
+   - Android Emulator
 
-2.  **Install Dependencies**:
-    ```bash
-    flutter pub get
-    ```
+### 1.2 Install Flutter & Dart Plugins
+1. Open Android Studio
+2. Go to **Settings/Preferences → Plugins**
+3. Search and install:
+   - **Flutter** plugin
+   - **Dart** plugin (usually auto-installed with Flutter)
+4. Restart Android Studio
 
-## Firebase Configuration (Critical)
+### 1.3 Create an Android Emulator
+1. Open Android Studio
+2. Go to **Tools → Device Manager** (or click the device icon in toolbar)
+3. Click **Create Device**
+4. Select a phone (e.g., **Pixel 7**)
+5. Click **Next**
+6. Select a system image:
+   - Recommended: **API 34** (Android 14) with **Google Play**
+   - Click **Download** if not already installed
+7. Click **Next → Finish**
+8. Click the **Play ▶** button to start the emulator
 
-This project uses Firebase for authentication. Since configuration files containing API keys are often git-ignored for security or might be missing from the repo, you need to ensure they are present.
+---
 
-### Android
-Check if `android/app/google-services.json` exists.
-*   **If missing**: You need to obtain the `google-services.json` file from the Firebase Console for the Android app and place it in `android/app/`.
+## Part 2: Project Setup
 
-### iOS
-Check if `ios/Runner/GoogleService-Info.plist` exists.
-*   **If missing** (Likely):
-    1.  Go to the Firebase Console.
-    2.  Download `GoogleService-Info.plist` for the iOS app.
-    3.  Open the project in Xcode (`open ios/Runner.xcworkspace`).
-    4.  Drag and drop data `GoogleService-Info.plist` into the `Runner` folder within Xcode. Ensure "Copy items if needed" is checked.
+### 2.1 Clone and Install
+```bash
+cd ~
+git clone <repository-url> cyclingapp
+cd cyclingapp
+flutter pub get
+```
 
-### Web (Optional)
-If running on web, ensure `lib/firebase_options.dart` is present and configured. If not, you may need to run `flutterfire configure`.
+### 2.2 Verify Flutter Setup
+```bash
+flutter doctor
+```
+Ensure no critical errors for Android development.
 
-### Enable Features
-1.  **Authentication**: Go to the Firebase Console -> Build -> Authentication -> Sign-in method.
-    *   Enable **Email/Password**.
-    *   Enable **Google** (if using Google Sign-In).
-2.  **Firestore Database**: Go to Build -> Firestore Database -> Create Database.
-    *   Start in **Test Mode** (for development) or set appropriate security rules.
-3.  **Storage**: Go to Build -> Storage -> Get Started.
-    *   Start in **Test Mode** (for development) to allow image uploads.
+---
 
-## Running the App
+## Part 3: Firebase Configuration (Required)
 
-1.  **Launch an Emulator/Simulator** or connect a physical device.
-2.  **Run the app**:
-    ```bash
-    flutter run
-    ```
+### 3.1 Android Firebase Setup
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Select/create your project
+3. Click **Add app → Android**
+4. Enter package name: `com.example.cruizr` (check `android/app/build.gradle`)
+5. Download `google-services.json`
+6. Place it in: `android/app/google-services.json`
 
-## Common Issues
+### 3.2 Add SHA-1 Fingerprint (for Google Sign-In)
+```bash
+cd android
+./gradlew signingReport
+```
+Copy the **SHA1** fingerprint from the output, then:
+1. Go to Firebase Console → Project Settings → Your Android App
+2. Click **Add fingerprint** and paste the SHA-1
 
-*   **CocoaPods (iOS)**: If you encounter issues on iOS, try running:
-    ```bash
-    cd ios
-    rm -rf Pods
-    rm Podfile.lock
-    pod install
-    cd ..
-    ```
-*   **Firebase Auth Errors**: Ensure your SHA-1 fingerprint is added to the Firebase Console for Android Google Sign-In to work.
+### 3.3 Enable Firebase Services
+In Firebase Console:
+1. **Authentication** → Sign-in method → Enable **Email/Password** and **Google**
+2. **Firestore Database** → Create database → Start in **Test mode**
+3. **Storage** → Get started → Start in **Test mode**
+
+---
+
+## Part 4: Google Maps API Setup
+
+### 4.1 Enable APIs
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Select your project (same as Firebase)
+3. Go to **APIs & Services → Library**
+4. Enable these APIs:
+   - **Maps SDK for Android**
+   - **Directions API** (for route generation)
+
+### 4.2 Get API Key
+1. Go to **APIs & Services → Credentials**
+2. Click **Create Credentials → API Key**
+3. Copy your API key
+4. (Optional) Restrict the key to your Android app
+
+### 4.3 Configure Android
+Your API key should already be in `android/app/src/main/AndroidManifest.xml`:
+```xml
+<meta-data
+    android:name="com.google.android.geo.API_KEY"
+    android:value="YOUR_API_KEY"/>
+```
+
+---
+
+## Part 5: Running the App
+
+### 5.1 Start the Emulator
+1. Open Android Studio
+2. Go to **Tools → Device Manager**
+3. Click **Play ▶** on your emulator
+
+### 5.2 Run from Terminal
+```bash
+cd ~/cyclingapp
+flutter run --dart-define=GOOGLE_MAPS_API_KEY=YOUR_API_KEY_HERE
+```
+
+### 5.3 Run from Android Studio
+1. Open the project in Android Studio: **File → Open → select cyclingapp folder**
+2. Select your emulator from the device dropdown (top toolbar)
+3. Click the **Run ▶** button (green play icon)
+
+> **Note**: To pass the API key in Android Studio:
+> 1. Go to **Run → Edit Configurations**
+> 2. Add to **Additional run args**: `--dart-define=GOOGLE_MAPS_API_KEY=YOUR_KEY`
+
+---
+
+## Part 6: Testing the Features
+
+### Route Generation
+1. Sign in to the app
+2. Tap the **+** button (Start Activity)
+3. Select **Create Route**
+4. Tap on the map to add 2+ waypoints
+5. The route should follow actual roads (not straight lines!)
+
+### Profile Editing
+1. Tap **Profile** in bottom navigation
+2. Edit any field (name, activities, privacy settings)
+3. Tap **Save** at top right
+
+### Smooth Toggles
+1. Go to **Start Activity** screen
+2. Toggle **Live Tracking** - observe smooth animation
+
+---
+
+## Troubleshooting
+
+### Emulator Won't Start
+```bash
+# Check if virtualization is enabled
+egrep -c '(vmx|svm)' /proc/cpuinfo
+# Should return a number > 0
+```
+Enable **Intel VT-x** or **AMD-V** in BIOS if needed.
+
+### Gradle Build Errors
+```bash
+cd android
+./gradlew clean
+cd ..
+flutter clean
+flutter pub get
+flutter run
+```
+
+### Google Sign-In Fails
+- Ensure SHA-1 fingerprint is added to Firebase Console
+- Ensure Google Sign-In is enabled in Firebase Authentication
+
+### Maps Not Loading
+- Verify API key is correct in AndroidManifest.xml
+- Ensure Maps SDK for Android is enabled in Google Cloud Console
+- Check API key restrictions
+
+### Routes Show Straight Lines
+- Ensure **Directions API** is enabled in Google Cloud Console
+- Check that API key billing is set up (Directions API requires billing)

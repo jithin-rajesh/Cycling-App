@@ -6,7 +6,6 @@ import 'firebase_options.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'screens/home_screen.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/main_navigation_screen.dart';
 

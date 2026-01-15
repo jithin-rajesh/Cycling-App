@@ -317,47 +317,69 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
     required String selectedValue,
     required ValueChanged<String> onChanged,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: CruizrTheme.surface,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: Row(
-        children: List.generate(options.length, (index) {
-          final isSelected = values[index] == selectedValue;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(values[index]),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: isSelected ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 5,
-                      offset: const Offset(0, 2),
-                    ),
-                  ] : null,
-                ),
-                child: Center(
-                  child: Text(
-                    options[index],
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color: isSelected ? CruizrTheme.primaryDark : CruizrTheme.textSecondary,
-                      fontSize: 13,
-                    ),
+    final selectedIndex = values.indexOf(selectedValue);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final segmentWidth = (constraints.maxWidth - 8) / options.length;
+        return Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: CruizrTheme.surface,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          padding: const EdgeInsets.all(4),
+          child: Stack(
+            children: [
+              // Sliding Indicator
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                left: selectedIndex * segmentWidth,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: segmentWidth,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
-          );
-        }),
-      ),
+              // Labels
+              Row(
+                children: List.generate(options.length, (index) {
+                  final isSelected = values[index] == selectedValue;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => onChanged(values[index]),
+                      behavior: HitTestBehavior.opaque,
+                      child: Center(
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOutCubic,
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                            color: isSelected ? CruizrTheme.primaryDark : CruizrTheme.textSecondary,
+                            fontSize: 13,
+                          ),
+                          child: Text(options[index]),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

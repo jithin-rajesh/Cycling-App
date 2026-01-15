@@ -1,8 +1,14 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../theme/app_theme.dart';
 import '../services/directions_service.dart';
+import 'follow_route_screen.dart';
 
 // API key is passed via --dart-define=GOOGLE_MAPS_API_KEY=...
 const String _mapsApiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
@@ -19,6 +25,10 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   final List<LatLng> _waypoints = [];
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
+  
+  // Location tracking
+  Position? _currentPosition;
+  BitmapDescriptor? _locationMarkerIcon;
   
   // Route type: 0 = Loop, 1 = One Way, 2 = Out & Back
   int _routeType = 1; // Default to One Way
@@ -93,6 +103,113 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   void initState() {
     super.initState();
     _directionsService = DirectionsService(apiKey: _mapsApiKey);
+    _initLocationMarker();
+  }
+
+  Future<void> _initLocationMarker() async {
+    _locationMarkerIcon = await _createLocationMarkerIcon();
+    _getCurrentLocation();
+  }
+
+  Future<BitmapDescriptor> _createLocationMarkerIcon() async {
+    const double circleSize = 40;
+    const double tipHeight = 16;
+    const double shadowOffset = 3;
+    const double padding = 6;
+    const double totalHeight = circleSize + tipHeight + padding;
+    const double totalWidth = circleSize + padding;
+    const double borderWidth = 4;
+    const double centerX = totalWidth / 2;
+    const double centerY = circleSize / 2 + 2;
+    
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    
+    final shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.25)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    
+    final whitePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    
+    final pinkPaint = Paint()
+      ..color = CruizrTheme.accentPink
+      ..style = PaintingStyle.fill;
+    
+    // Draw shadow tip
+    final shadowTipPath = Path();
+    shadowTipPath.moveTo(centerX - 8 + shadowOffset, centerY + circleSize / 2 - 6 + shadowOffset);
+    shadowTipPath.lineTo(centerX + 8 + shadowOffset, centerY + circleSize / 2 - 6 + shadowOffset);
+    shadowTipPath.lineTo(centerX + shadowOffset, centerY + tipHeight + circleSize / 2 - 10 + shadowOffset);
+    shadowTipPath.close();
+    canvas.drawPath(shadowTipPath, shadowPaint);
+    
+    // Draw shadow circle
+    canvas.drawCircle(Offset(centerX + shadowOffset, centerY + shadowOffset), circleSize / 2, shadowPaint);
+    
+    // Draw white tip
+    final tipPath = Path();
+    tipPath.moveTo(centerX - 8, centerY + circleSize / 2 - 6);
+    tipPath.lineTo(centerX + 8, centerY + circleSize / 2 - 6);
+    tipPath.lineTo(centerX, centerY + tipHeight + circleSize / 2 - 10);
+    tipPath.close();
+    canvas.drawPath(tipPath, whitePaint);
+    
+    // Draw white outer circle
+    canvas.drawCircle(Offset(centerX, centerY), circleSize / 2, whitePaint);
+    
+    // Draw pink inner circle
+    canvas.drawCircle(Offset(centerX, centerY), circleSize / 2 - borderWidth, pinkPaint);
+    
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(totalWidth.toInt(), totalHeight.toInt());
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
+  }
+
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    if (permission == LocationPermission.deniedForever) return;
+
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+    
+    setState(() {
+      _currentPosition = position;
+    });
+    
+    _updateLocationMarker();
+    
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
+    );
+  }
+
+  void _updateLocationMarker() {
+    if (_currentPosition != null && _locationMarkerIcon != null) {
+      setState(() {
+        _markers.removeWhere((m) => m.markerId.value == 'current_location');
+        _markers.add(
+          Marker(
+            markerId: const MarkerId('current_location'),
+            position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            icon: _locationMarkerIcon!,
+            anchor: const Offset(0.5, 1.0),
+          ),
+        );
+      });
+    }
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -256,8 +373,122 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
       );
       return;
     }
-    // TODO: Save route to Firebase
-    Navigator.of(context).pop();
+    
+    // Show dialog to get route name
+    _showSaveRouteDialog();
+  }
+
+  void _showSaveRouteDialog() {
+    final TextEditingController nameController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Name Your Route'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'e.g., Morning Ride',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: CruizrTheme.accentPink, width: 2),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a route name')),
+                );
+                return;
+              }
+              Navigator.of(context).pop();
+              _saveRouteToFirestore(name);
+            },
+            child: Text('Save', style: TextStyle(color: CruizrTheme.accentPink, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveRouteToFirestore(String name) async {
+    // Get route points from polyline or waypoints
+    List<LatLng> routePoints = [];
+    if (_polylines.isNotEmpty) {
+      routePoints = _polylines.first.points;
+    } else {
+      routePoints = List.from(_waypoints);
+    }
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please sign in to save routes')),
+        );
+        return;
+      }
+
+      // Convert LatLng to storable format
+      final routePointsData = routePoints.map((p) => {
+        'lat': p.latitude,
+        'lng': p.longitude,
+      }).toList();
+
+      final waypointsData = _waypoints.map((p) => {
+        'lat': p.latitude,
+        'lng': p.longitude,
+      }).toList();
+
+      // Save to Firestore
+      await FirebaseFirestore.instance.collection('routes').add({
+        'userId': user.uid,
+        'name': name,
+        'routePoints': routePointsData,
+        'waypoints': waypointsData,
+        'distanceKm': _distance,
+        'durationMinutes': _duration,
+        'elevation': _elevation,
+        'routeType': _routeType,
+        'routingPreference': _routingPreference,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Route "$name" saved!')),
+      );
+
+      // Navigate to follow route screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => FollowRouteScreen(
+            routePoints: routePoints,
+            waypoints: List.from(_waypoints),
+            distanceKm: _distance,
+            durationMinutes: _duration,
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving route: $e')),
+      );
+    }
   }
 
   @override
@@ -284,7 +515,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                     ),
                     markers: _markers,
                     polylines: _polylines,
-                    myLocationEnabled: true,
+                    myLocationEnabled: false,
                     myLocationButtonEnabled: false,
                     zoomControlsEnabled: false,
                     mapToolbarEnabled: false,
@@ -323,24 +554,24 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                         ),
                       ),
                     ),
-                  // Zoom controls
+                  // Zoom controls - wrapped with PointerInterceptor to prevent tap pass-through on web
                   Positioned(
                     top: 16,
                     right: 16,
-                    child: Column(
-                      children: [
-                        _buildMapButton(Icons.add, () {
-                          _mapController?.animateCamera(CameraUpdate.zoomIn());
-                        }),
-                        const SizedBox(height: 8),
-                        _buildMapButton(Icons.remove, () {
-                          _mapController?.animateCamera(CameraUpdate.zoomOut());
-                        }),
-                        const SizedBox(height: 8),
-                        _buildMapButton(Icons.my_location, () {
-                          // Could get user location and move camera
-                        }),
-                      ],
+                    child: PointerInterceptor(
+                      child: Column(
+                        children: [
+                          _buildMapButton(Icons.add, () {
+                            _mapController?.animateCamera(CameraUpdate.zoomIn());
+                          }),
+                          const SizedBox(height: 8),
+                          _buildMapButton(Icons.remove, () {
+                            _mapController?.animateCamera(CameraUpdate.zoomOut());
+                          }),
+                          const SizedBox(height: 8),
+                          _buildMapButton(Icons.my_location, _getCurrentLocation),
+                        ],
+                      ),
                     ),
                   ),
                   // Hint text when no waypoints
@@ -437,11 +668,12 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   }
 
   Widget _buildMapButton(IconData icon, VoidCallback onTap) {
+    // Simple GestureDetector - PointerInterceptor handles the tap blocking
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
