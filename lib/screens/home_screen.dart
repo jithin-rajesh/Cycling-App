@@ -60,12 +60,12 @@ class _HomeScreenState extends State<HomeScreen> {
         final data = doc.data();
         if (data != null && data.containsKey('activities')) {
            final List<dynamic> activities = data['activities'];
-           if (activities.isNotEmpty) {
-             final favorite = activities.first.toString();
-             setState(() {
-               _activitySuggestion = "Hey, let's $favorite";
-             });
-           }
+             if (activities.isNotEmpty) {
+               final favorite = activities.first.toString();
+               setState(() {
+                 _activitySuggestion = "Hey, let's go $favorite";
+               });
+             }
         }
       }
     }
@@ -132,45 +132,112 @@ class _HomeScreenState extends State<HomeScreen> {
 
                // Main Action Card
                Container(
-                 height: 200,
-                 padding: const EdgeInsets.all(24),
+                 height: 220,
                  decoration: BoxDecoration(
-                   gradient: const LinearGradient(
-                     colors: [Color(0xFF8D6E63), Color(0xFFD7CCC8)], // Brown/Pink gradient placeholder
-                     begin: Alignment.topLeft,
-                     end: Alignment.bottomRight,
-                   ),
-                   borderRadius: BorderRadius.circular(24),
-                   boxShadow: const [
-                     BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5)),
+                   borderRadius: BorderRadius.circular(32),
+                   boxShadow: [
+                     BoxShadow(
+                       color: CruizrTheme.accentPink.withValues(alpha: 0.3),
+                       blurRadius: 20,
+                       offset: const Offset(0, 10),
+                     ),
                    ],
                  ),
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                     Text(
-                       _activitySuggestion,
-                       style: const TextStyle(
-                         color: Colors.white,
-                         fontSize: 22,
-                         fontWeight: FontWeight.bold,
-                         fontFamily: 'Playfair Display',
+                 child: ClipRRect(
+                   borderRadius: BorderRadius.circular(32),
+                   child: Stack(
+                     children: [
+                       // Background Gradient
+                       Container(
+                         decoration: const BoxDecoration(
+                           gradient: LinearGradient(
+                             colors: [Color(0xFF4A2545), Color(0xFF2E1A25)], // Deep Violet/Brown mix
+                             begin: Alignment.topLeft,
+                             end: Alignment.bottomRight,
+                           ),
+                         ),
                        ),
-                     ),
-                     const Spacer(),
-                     OutlinedButton(
-                       onPressed: () {
-                          // Navigate to Start Activity Screen via main navigation or direct
-                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StartActivityScreen()));
-                       },
-                       style: OutlinedButton.styleFrom(
-                         foregroundColor: Colors.white,
-                         side: const BorderSide(color: Colors.white),
-                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                       // Decorative Circles
+                       Positioned(
+                         top: -50,
+                         right: -50,
+                         child: Container(
+                           width: 200,
+                           height: 200,
+                           decoration: BoxDecoration(
+                             shape: BoxShape.circle,
+                             color: Colors.white.withValues(alpha: 0.05),
+                           ),
+                         ),
                        ),
-                       child: const Text('Start Activity'),
-                     ),
-                   ],
+                       Positioned(
+                         bottom: -30,
+                         left: -30,
+                         child: Container(
+                           width: 150,
+                           height: 150,
+                           decoration: BoxDecoration(
+                             shape: BoxShape.circle,
+                             color: Color(0xFFD97D84).withValues(alpha: 0.1), // Accent pink low opacity
+                           ),
+                         ),
+                       ),
+                       // Content
+                       Padding(
+                         padding: const EdgeInsets.all(28.0),
+                         child: Column(
+                           crossAxisAlignment: CrossAxisAlignment.start,
+                           children: [
+                             Container(
+                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                               decoration: BoxDecoration(
+                                 color: Colors.white.withValues(alpha: 0.2),
+                                 borderRadius: BorderRadius.circular(20),
+                               ),
+                               child: const Text(
+                                 'Daily Goal',
+                                 style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                               ),
+                             ),
+                             const SizedBox(height: 16),
+                             Text(
+                               _activitySuggestion == 'Ready to move?' ? "Hey, let's go cycling!" : _activitySuggestion,
+                               style: const TextStyle(
+                                color: Color(0xFFFFF6F5), // Creamy White
+                                 fontSize: 28,
+                                 fontWeight: FontWeight.bold,
+                                 fontFamily: 'Playfair Display',
+                                 height: 1.1,
+                               ),
+                             ),
+                             const Spacer(),
+                             SizedBox(
+                               width: double.infinity,
+                               child: ElevatedButton(
+                                 onPressed: () {
+                                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StartActivityScreen()));
+                                 },
+                                 style: ElevatedButton.styleFrom(
+                                   backgroundColor: Colors.white,
+                                   foregroundColor: const Color(0xFF5D4037),
+                                   padding: const EdgeInsets.symmetric(vertical: 16),
+                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                   elevation: 0,
+                                 ),
+                                 child: const Text(
+                                   'Start Activity',
+                                   style: TextStyle(
+                                     fontSize: 16,
+                                     fontWeight: FontWeight.bold,
+                                   ),
+                                 ),
+                               ),
+                             ),
+                           ],
+                         ),
+                       ),
+                     ],
+                   ),
                  ),
                ),
                const SizedBox(height: 32),

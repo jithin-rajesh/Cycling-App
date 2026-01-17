@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/cruizr_switch.dart';
-import '../home_screen.dart';
+import '../main_navigation_screen.dart';
 
 class PrivacySafetyScreen extends StatefulWidget {
   final Map<String, dynamic> profileData;
@@ -79,7 +79,7 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
 
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
           (route) => false,
         );
       }

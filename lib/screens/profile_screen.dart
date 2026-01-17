@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cruizr_switch.dart';
-import 'sign_in_screen.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -179,13 +179,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _signOut() async {
+    // Pop all screens to return to AuthGate (root)
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    
+    // Sign out to trigger AuthGate stream
     await FirebaseAuth.instance.signOut();
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const SignInScreen()),
-        (route) => false,
-      );
-    }
   }
 
   @override

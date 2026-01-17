@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../theme/app_theme.dart';
 import '../models/activity_model.dart';
 import '../services/activity_service.dart';
@@ -26,11 +27,13 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
   // Tracking state
   bool _isTracking = false;
   bool _isPaused = false;
+  bool _isMapExpanded = false; // For small screens
   
   // Stats
   double _distance = 0.0;
   Duration _duration = Duration.zero;
-  double _speed = 0.0;
+  double _elevationGain = 0.0;
+  double? _lastAltitude;
   
   Timer? _timer;
   StreamSubscription<Position>? _positionSubscription;
@@ -181,36 +184,57 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
   }
 
   Future<void> _getCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return;
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location services are disabled.')),
+        );
         return;
       }
-    }
 
-    if (permission == LocationPermission.deniedForever) {
-      return;
-    }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission denied.')),
+          );
+          return;
+        }
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission permanently denied. Allow in settings.')),
+        );
+        return;
+      }
 
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-    
-    setState(() {
-      _currentPosition = position;
-    });
-    
-    _updateLocationMarker();
-    
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
-    );
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      
+      if (!mounted) return;
+
+      setState(() {
+        _currentPosition = position;
+      });
+      
+      _updateLocationMarker();
+      
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error getting location: $e')),
+      );
+    }
   }
 
   void _startTracking() {
@@ -248,8 +272,18 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
             ) / 1000; // Convert to km
           }
           
+          // Calculate Elevation Gain
+          if (_lastAltitude != null) {
+            double altitudeDiff = position.altitude - _lastAltitude!;
+            // Only count positive gain, ignore small noise (< 0.5m)
+            if (altitudeDiff > 0.5) {
+              _elevationGain += altitudeDiff;
+            }
+          }
+          _lastAltitude = position.altitude;
+          
           _routePoints.add(LatLng(position.latitude, position.longitude));
-          _speed = position.speed * 3.6; // Convert m/s to km/h
+          // _speed = position.speed * 3.6; // Removed as unused
           _updatePolyline();
           _currentPosition = position;
         });
@@ -307,7 +341,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
           children: [
             _buildSummaryRow('Distance', '${_distance.toStringAsFixed(2)} km'),
             _buildSummaryRow('Duration', _formatDuration(_duration)),
-            _buildSummaryRow('Avg Speed', '${(_distance / (_duration.inSeconds / 3600)).toStringAsFixed(1)} km/h'),
+            _buildSummaryRow('Elevation', '${_elevationGain.toStringAsFixed(0)} m'),
           ],
         ),
         actions: [
@@ -434,33 +468,81 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
                   ),
                   // Zoom controls
                   Positioned(
-                    top: 16,
+                    top: _isMapExpanded ? 16 : null,
+                    bottom: _isMapExpanded ? null : 16,
                     right: 16,
-                    child: Column(
-                      children: [
-                        _buildMapButton(Icons.add, () {
-                          _mapController?.animateCamera(CameraUpdate.zoomIn());
-                        }),
-                        const SizedBox(height: 8),
-                        _buildMapButton(Icons.remove, () {
-                          _mapController?.animateCamera(CameraUpdate.zoomOut());
-                        }),
-                        const SizedBox(height: 8),
-                        _buildMapButton(Icons.my_location, _getCurrentLocation),
-                      ],
+                    child: PointerInterceptor(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildMapButton(Icons.add, () {
+                            _mapController?.animateCamera(CameraUpdate.zoomIn());
+                          }),
+                          const SizedBox(height: 8),
+                          _buildMapButton(Icons.remove, () {
+                            _mapController?.animateCamera(CameraUpdate.zoomOut());
+                          }),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildMapButton(
+                                _isMapExpanded ? Icons.fullscreen_exit : Icons.fullscreen, 
+                                () => setState(() => _isMapExpanded = !_isMapExpanded)
+                              ),
+                              const SizedBox(width: 12),
+                              _buildMapButton(Icons.my_location, _getCurrentLocation),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                  if (_isMapExpanded)
+                    Positioned(
+                      bottom: 24,
+                      left: 16,
+                      right: 16,
+                      child: PointerInterceptor(
+                        child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildExpandedStat('Distance', '${_distance.toStringAsFixed(2)} km'),
+                            Container(width: 1, height: 24, color: Colors.grey.withValues(alpha: 0.3)),
+                            _buildExpandedStat('Duration', _formatDuration(_duration)),
+                            Container(width: 1, height: 24, color: Colors.grey.withValues(alpha: 0.3)),
+                            _buildExpandedStat('Elev', '${_elevationGain.toStringAsFixed(0)} m'),
+                          ],
+                        ),
+                      ),
+                      ),
+                    ),
                 ],
               ),
             ),
             
-            // Stats Panel
-            _buildStatsPanel(),
-            
-            // Controls
-            _buildControls(),
-            
-            const SizedBox(height: 24),
+            if (!_isMapExpanded) ...[
+              // Stats Panel
+              _buildStatsPanel(),
+              
+              // Controls
+              _buildControls(),
+              
+              const SizedBox(height: 24),
+            ],
           ],
         ),
       ),
@@ -561,7 +643,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
         children: [
           _buildStat('Distance', '${_distance.toStringAsFixed(2)} km'),
           _buildStat('Duration', _formatDuration(_duration)),
-          _buildStat('Speed', '${_speed.toStringAsFixed(1)} km/h'),
+          _buildStat('Elev', '${_elevationGain.toStringAsFixed(0)} m'),
         ],
       ),
     );
@@ -673,6 +755,14 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
             fontWeight: FontWeight.w500,
           ),
         ),
+      ],
+    );
+  }
+  Widget _buildExpandedStat(String label, String value) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
       ],
     );
   }

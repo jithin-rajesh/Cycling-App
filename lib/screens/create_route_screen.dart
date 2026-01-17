@@ -40,6 +40,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   
   // Loading state for route fetching
   bool _isLoadingRoute = false;
+  bool _isMapExpanded = false; // For small screens
   
   // Stats
   double _distance = 0.0;
@@ -175,29 +176,57 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   }
 
   Future<void> _getCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location services are disabled.')),
+        );
+        return;
+      }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission denied.')),
+          );
+          return;
+        }
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission permanently denied. Allow in settings.')),
+        );
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      
+      if (!mounted) return;
+
+      setState(() {
+        _currentPosition = position;
+      });
+      
+      _updateLocationMarker();
+      
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error getting location: $e')),
+      );
     }
-    if (permission == LocationPermission.deniedForever) return;
-
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-    
-    setState(() {
-      _currentPosition = position;
-    });
-    
-    _updateLocationMarker();
-    
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
-    );
   }
 
   void _updateLocationMarker() {
@@ -597,10 +626,12 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                     ),
                   // Zoom controls - wrapped with PointerInterceptor to prevent tap pass-through on web
                   Positioned(
-                    top: 16,
+                    top: _isMapExpanded ? 16 : null,
+                    bottom: _isMapExpanded ? null : 16,
                     right: 16,
                     child: PointerInterceptor(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           _buildMapButton(Icons.add, () {
                             _mapController?.animateCamera(CameraUpdate.zoomIn());
@@ -609,8 +640,18 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                           _buildMapButton(Icons.remove, () {
                             _mapController?.animateCamera(CameraUpdate.zoomOut());
                           }),
-                          const SizedBox(height: 8),
-                          _buildMapButton(Icons.my_location, _getCurrentLocation),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildMapButton(
+                                _isMapExpanded ? Icons.fullscreen_exit : Icons.fullscreen, 
+                                () => setState(() => _isMapExpanded = !_isMapExpanded)
+                              ),
+                              const SizedBox(width: 12),
+                              _buildMapButton(Icons.my_location, _getCurrentLocation),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -633,20 +674,108 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                         ),
                       ),
                     ),
+                  // Expanded Map Overlays (Stats & Controls)
+                  if (_isMapExpanded)
+                    Positioned(
+                      bottom: 24,
+                      left: 16,
+                      right: 16,
+                      child: PointerInterceptor(
+                        child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Floating Stats Panel
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildExpandedStat('Distance', '${_distance.toStringAsFixed(2)} km'),
+                                Container(width: 1, height: 24, color: Colors.grey.withValues(alpha: 0.3)),
+                                _buildExpandedStat('Duration', '${_duration}m'),
+                                Container(width: 1, height: 24, color: Colors.grey.withValues(alpha: 0.3)),
+                                _buildExpandedStat('Elev', '${_elevation.toStringAsFixed(0)}m'),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Toolbar (Undo, Clear, AutoSnap)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(30),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.undo, color: Color(0xFF5D4037)),
+                                  onPressed: _undo,
+                                  tooltip: 'Undo',
+                                ),
+                                Container(width: 1, height: 20, color: Colors.grey.withValues(alpha: 0.2)),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Color(0xFF5D4037)),
+                                  onPressed: _clear,
+                                  tooltip: 'Clear',
+                                ),
+                                Container(width: 1, height: 20, color: Colors.grey.withValues(alpha: 0.2)),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.auto_fix_high,
+                                    color: _routingPreference != 2 
+                                        ? CruizrTheme.accentPink 
+                                        : const Color(0xFF5D4037),
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _routingPreference = _routingPreference == 2 ? 0 : 2;
+                                    });
+                                  },
+                                  tooltip: 'Auto Snap',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      ),
+                    ),
                 ],
               ),
             ),
             
-            // Stats Panel
-            _buildStatsPanel(),
-            
-            // Route Type
-            _buildRouteTypeSelector(),
-            
-            // Routing Preference
-            _buildRoutingPreference(),
-            
-            const SizedBox(height: 16),
+            if (!_isMapExpanded) ...[
+              // Stats Panel
+              _buildStatsPanel(),
+              
+              // Route Type
+              _buildRouteTypeSelector(),
+              
+              // Routing Preference
+              _buildRoutingPreference(),
+              
+              const SizedBox(height: 16),
+            ],
           ],
         ),
       ),
@@ -968,6 +1097,14 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
           ],
         ),
       ),
+    );
+  }
+  Widget _buildExpandedStat(String label, String value) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+      ],
     );
   }
 }

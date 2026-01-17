@@ -5,11 +5,15 @@ import 'package:permission_handler/permission_handler.dart';
 import '../models/activity_model.dart';
 
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 class ActivityService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Future<bool> requestPermissions() async {
+    if (kIsWeb) return true; // Permissions are handled by browser/Geolocator on web
+
     // Request activity recognition permission
     // For Android 10+ (API 29+), this is required for step counting/activity recognition
     final activityStatus = await Permission.activityRecognition.request();
