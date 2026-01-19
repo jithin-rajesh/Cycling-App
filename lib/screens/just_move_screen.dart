@@ -366,6 +366,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
                   distance: _distance,
                   duration: _duration,
                   calories: _distance * 40, // Rough estimate
+                  elevationGain: _elevationGain,
                   polyline: _routePoints,
                 );
                 

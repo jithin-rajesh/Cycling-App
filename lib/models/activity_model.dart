@@ -11,6 +11,7 @@ class ActivityModel {
   final double distance; // in km
   final Duration duration;
   final double calories;
+  final double elevationGain; // in meters
   final List<LatLng> polyline;
 
   ActivityModel({
@@ -22,6 +23,7 @@ class ActivityModel {
     required this.distance,
     required this.duration,
     required this.calories,
+    required this.elevationGain,
     required this.polyline,
   });
 
@@ -35,6 +37,7 @@ class ActivityModel {
       'distance': distance,
       'duration': duration.inSeconds, // Store as seconds
       'calories': calories,
+      'elevationGain': elevationGain,
       'polyline': polyline.map((p) => {'lat': p.latitude, 'lng': p.longitude}).toList(),
     };
   }
@@ -49,6 +52,7 @@ class ActivityModel {
       distance: (map['distance'] as num).toDouble(),
       duration: Duration(seconds: map['duration'] as int),
       calories: (map['calories'] as num).toDouble(),
+      elevationGain: (map['elevationGain'] as num?)?.toDouble() ?? 0.0,
       polyline: (map['polyline'] as List<dynamic>?)
               ?.map((p) => LatLng(p['lat'], p['lng']))
               .toList() ??

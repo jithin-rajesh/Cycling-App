@@ -122,6 +122,8 @@ class ActivityHistoryScreen extends StatelessWidget {
                                 _buildMiniStat(Icons.timer, _formatDuration(activity.duration)),
                                 const SizedBox(width: 16),
                                 _buildMiniStat(Icons.local_fire_department, '${activity.calories.toInt()} cal'),
+                                const SizedBox(width: 16),
+                                _buildMiniStat(Icons.terrain, '${activity.elevationGain.toInt()} m'),
                               ],
                             ),
                           ],

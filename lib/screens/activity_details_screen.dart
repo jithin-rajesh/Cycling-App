@@ -269,6 +269,16 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
               Expanded(child: _buildStatItem(Icons.local_fire_department, 'Calories', '${widget.activity.calories.toInt()} cal')),
             ],
           ),
+          const SizedBox(height: 24),
+          const Divider(height: 1),
+          const SizedBox(height: 24),
+           Row(
+            children: [
+              Expanded(child: _buildStatItem(Icons.terrain, 'Elevation Gain', '${widget.activity.elevationGain.toInt()} m')),
+              Container(width: 1, height: 40, color: Colors.transparent), // Spacer
+              const Expanded(child: SizedBox()), // Empty slot for balance
+            ],
+          ),
         ],
       ),
     );
