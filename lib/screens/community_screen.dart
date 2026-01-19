@@ -110,7 +110,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : ListView.separated(
+                  : _leaderboard.isEmpty 
+                      ? Center(child: Text("No community activity yet.\nBe the first!", textAlign: TextAlign.center, style: TextStyle(color: CruizrTheme.textSecondary)))
+                      : ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                       itemCount: _leaderboard.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -221,8 +223,16 @@ class _CommunityScreenState extends State<CommunityScreen> {
             decoration: BoxDecoration(
               color: Colors.grey[200],
               shape: BoxShape.circle,
+              image: user['avatar'] != null
+                  ? DecorationImage(
+                      image: NetworkImage(user['avatar']),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
             ),
-            child: const Icon(Icons.person, color: Colors.grey),
+            child: user['avatar'] == null 
+                ? const Icon(Icons.person, color: Colors.grey)
+                : null,
           ),
           const SizedBox(width: 16),
 

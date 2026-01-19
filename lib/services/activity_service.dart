@@ -28,13 +28,29 @@ class ActivityService {
     final user = _auth.currentUser;
     if (user == null) return;
 
+    // Save the activity document
     await _firestore
         .collection('users')
         .doc(user.uid)
         .collection('activities')
         .add(activity.toMap());
         
-    // Update user's aggregate stats if needed (optional)
+    // Update user's aggregate stats
+    await _firestore.collection('users').doc(user.uid).update({
+      'totalDistance': FieldValue.increment(activity.distance),
+      'totalCalories': FieldValue.increment(activity.calories),
+      'totalDuration': FieldValue.increment(activity.duration.inSeconds),
+      // Ensure basic profile info is there if it wasn't already
+      'lastActivity': FieldValue.serverTimestamp(), 
+    }).catchError((e) {
+      // If doc doesn't exist (edge case), set it
+      _firestore.collection('users').doc(user.uid).set({
+        'totalDistance': activity.distance,
+        'totalCalories': activity.calories,
+        'totalDuration': activity.duration.inSeconds,
+        'lastActivity': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
   }
   
   // Get weekly stats
@@ -91,49 +107,29 @@ class ActivityService {
         .map((doc) => ActivityModel.fromMap(doc.data(), doc.id))
         .toList();
   }
-  // Get Leaderboard Data (Mock for now)
+
+  // Get Leaderboard Data (Real Data)
   Future<List<Map<String, dynamic>>> getLeaderboard(String metric) async {
-    // metrics: 'distance' or 'calories'
-    await Future.delayed(const Duration(milliseconds: 800)); // Simulate network delay
+    // metric: 'distance' (default) or 'calories'
+    final String orderByField = metric == 'calories' ? 'totalCalories' : 'totalDistance';
+    
+    final querySnapshot = await _firestore
+        .collection('users')
+        .orderBy(orderByField, descending: true)
+        .limit(50) // Top 50
+        .get();
 
-    // Extended mock data
-    final List<Map<String, dynamic>> mockUsers = [
-      {'name': 'Alex Rivera', 'distance': 156.5, 'calories': 4500.0, 'avatar': null},
-      {'name': 'Sarah Chen', 'distance': 142.0, 'calories': 3800.0, 'avatar': null},
-      {'name': 'Mike Ross', 'distance': 120.5, 'calories': 4100.0, 'avatar': null},
-      {'name': 'Emma Wilson', 'distance': 98.2, 'calories': 2900.0, 'avatar': null},
-      {'name': 'David Kim', 'distance': 85.0, 'calories': 2500.0, 'avatar': null},
-      {'name': 'Lisa Park', 'distance': 72.5, 'calories': 2100.0, 'avatar': null},
-      {'name': 'Tom Holland', 'distance': 60.0, 'calories': 3000.0, 'avatar': null},
-      {'name': 'Adwai (You)', 'distance': 0.0, 'calories': 0.0, 'avatar': null, 'isMe': true}, 
-    ];
-
-    // Try to get real stats for "You"
-    final realStats = await getWeeklyStats();
-    final myIndex = mockUsers.indexWhere((u) => u['isMe'] == true);
-    if (myIndex != -1) {
-       mockUsers[myIndex]['distance'] = 25.5 + ((realStats['count'] as int) * 5); // Add dummy base
-       // Use real stats if they exist, roughly converted or just use the mock logic + real addition
-       // For a proper leaderboard, we'd normally just read the real aggregate.
-       // Here we'll just overlay the real weekly stats if they are non-zero
-       if ((realStats['calories'] as double) > 0) {
-          mockUsers[myIndex]['calories'] = realStats['calories'];
-       } else {
-         mockUsers[myIndex]['calories'] = 1250.0; // Fallback mock
-       }
-       
-       // Rough distance estimate from time if distance isn't tracked in getWeeklyStats (which it isn't currently, only time/cals)
-       // We should ideally update getWeeklyStats to return distance too.
-       // For now, let's just leave the mock base + some random factor
-    }
-
-    // Sort
-    if (metric == 'distance') {
-      mockUsers.sort((a, b) => (b['distance'] as double).compareTo(a['distance'] as double));
-    } else {
-      mockUsers.sort((a, b) => (b['calories'] as double).compareTo(a['calories'] as double));
-    }
-
-    return mockUsers;
+    final currentUser = _auth.currentUser;
+    
+    return querySnapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'name': data['preferredName'] ?? data['displayName'] ?? 'Cruizr User',
+        'distance': (data['totalDistance'] as num?)?.toDouble() ?? 0.0,
+        'calories': (data['totalCalories'] as num?)?.toDouble() ?? 0.0,
+        'avatar': data['photoUrl'],
+        'isMe': currentUser != null && doc.id == currentUser.uid,
+      };
+    }).toList();
   }
 }

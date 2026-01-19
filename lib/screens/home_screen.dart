@@ -6,6 +6,8 @@ import '../theme/app_theme.dart';
 import '../services/activity_service.dart';
 import '../models/activity_model.dart';
 import 'start_activity_screen.dart';
+import 'activity_history_screen.dart';
+import 'activity_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -284,23 +286,38 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 18, fontStyle: FontStyle.italic),
                     ),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const ActivityHistoryScreen(),
+                          ),
+                        );
+                      },
                       child: Text('See all →', style: TextStyle(color: CruizrTheme.accentPink)),
                     )
                   ],
                 ),
                 const SizedBox(height: 8),
                 
-                ..._recentActivities.map((activity) => Column(
-                  children: [
-                    _buildActivityRow(
-                      Icons.directions_bike, 
-                      activity.type, 
-                      '${activity.distance.toStringAsFixed(1)} km • ${_formatDurationShort(activity.duration)} • ${activity.calories.toStringAsFixed(0)} cal', 
-                      _getRelativeTime(activity.startTime)
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+                ..._recentActivities.map((activity) => GestureDetector(
+                  onTap: () {
+                     Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => ActivityDetailsScreen(activity: activity),
+                      ),
+                    );
+                  },
+                  child: Column(
+                    children: [
+                      _buildActivityRow(
+                        Icons.directions_bike, 
+                        activity.type, 
+                        '${activity.distance.toStringAsFixed(1)} km • ${_formatDurationShort(activity.duration)} • ${activity.calories.toStringAsFixed(0)} cal', 
+                        _getRelativeTime(activity.startTime)
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
                 )),
                ] else ...[
                  Center(
