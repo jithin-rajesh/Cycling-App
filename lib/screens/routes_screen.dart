@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:geolocator/geolocator.dart'; // Added back
+import '../services/strava_service.dart';
 import '../theme/app_theme.dart';
 import 'follow_route_screen.dart';
 
@@ -13,8 +16,66 @@ class RoutesScreen extends StatefulWidget {
 }
 
 class _RoutesScreenState extends State<RoutesScreen> {
-  final List<String> _filters = ["My Routes", "All Routes"];
+  final List<String> _filters = ["My Routes", "All Routes", "Strava Segments"];
   int _selectedFilterIndex = 0;
+  
+  // Map State
+  GoogleMapController? _mapController;
+  final Set<Polyline> _segmentPolylines = {};
+  final Set<Marker> _segmentMarkers = {};
+  static const LatLng _defaultCenter = LatLng(12.9716, 77.5946); // Bangalore
+  
+  // Custom map style (reuse from CreateRoute if possible, or simplified)
+  static const String _mapStyle = '''
+[
+  {
+    "elementType": "geometry",
+    "stylers": [{"color": "#212121"}]
+  },
+  {
+    "elementType": "labels.icon",
+    "stylers": [{"visibility": "off"}]
+  },
+  {
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#757575"}]
+  },
+  {
+    "elementType": "labels.text.stroke",
+    "stylers": [{"color": "#212121"}]
+  },
+  {
+    "featureType": "administrative",
+    "elementType": "geometry",
+    "stylers": [{"color": "#757575"}]
+  },
+  {
+    "featureType": "landscape",
+    "elementType": "geometry",
+    "stylers": [{"color": "#212121"}]
+  },
+  {
+    "featureType": "poi",
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#757575"}]
+  },
+  {
+    "featureType": "road",
+    "elementType": "geometry.fill",
+    "stylers": [{"color": "#2c2c2c"}]
+  },
+  {
+    "featureType": "road",
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#8a8a8a"}]
+  },
+  {
+    "featureType": "water",
+    "elementType": "geometry",
+    "stylers": [{"color": "#000000"}]
+  }
+]
+''';
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +87,9 @@ class _RoutesScreenState extends State<RoutesScreen> {
             _buildHeader(),
             _buildFilters(),
             Expanded(
-              child: _buildRoutesList(),
+              child: _selectedFilterIndex == 2 
+                  ? _buildSegmentsMap() 
+                  : _buildRoutesList(),
             ),
           ],
         ),
@@ -229,6 +292,222 @@ class _RoutesScreenState extends State<RoutesScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildSegmentsMap() {
+    return Stack(
+      children: [
+        GoogleMap(
+          initialCameraPosition: const CameraPosition(
+            target: _defaultCenter,
+            zoom: 12,
+          ),
+          onMapCreated: (controller) {
+            _mapController = controller;
+            _getUserLocation();
+          },
+          onCameraIdle: _fetchSegmentsInView,
+          style: _mapStyle,
+          myLocationEnabled: true,
+          myLocationButtonEnabled: false,
+          markers: _segmentMarkers,
+          polylines: _segmentPolylines,
+        ),
+        Positioned(
+          top: 16,
+          right: 16,
+          child: FloatingActionButton(
+            heroTag: 'map_loc',
+            mini: true,
+            backgroundColor: CruizrTheme.surface,
+            onPressed: _getUserLocation,
+            child: const Icon(Icons.my_location, color: Colors.black),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _getUserLocation() async {
+    try {
+      final position = await Geolocator.getCurrentPosition();
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
+      );
+    } catch (e) {
+      debugPrint('Location error: $e');
+    }
+  }
+
+  Future<void> _fetchSegmentsInView() async {
+    if (_mapController == null) return;
+    
+    final bounds = await _mapController!.getVisibleRegion();
+    final southWest = bounds.southwest;
+    final northEast = bounds.northeast;
+    
+    final boundsString = '${southWest.latitude},${southWest.longitude},${northEast.latitude},${northEast.longitude}';
+    
+    final segments = await StravaService().exploreSegments(boundsString);
+    
+    if (!mounted) return;
+
+    setState(() {
+      _segmentPolylines.clear();
+      _segmentMarkers.clear();
+      
+      for (var segment in segments) {
+        final id = segment['id'].toString();
+        // final name = segment['name'];
+        final polylineEncoded = segment['points'];
+        if (polylineEncoded != null && polylineEncoded.isNotEmpty) {
+           final points = PolylinePoints().decodePolyline(polylineEncoded);
+           final latLngs = points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+           
+           _segmentPolylines.add(
+             Polyline(
+               polylineId: PolylineId('poly_$id'),
+               points: latLngs,
+               color: const Color(0xFFFC4C02).withValues(alpha: 0.7), // Strava Orange
+               width: 4,
+               onTap: () {
+                 // Open details when tapping line too
+                 _showSegmentDetails(segment);
+               },
+               consumeTapEvents: true,
+             ),
+           );
+        }
+        
+        // Markers for start points
+        final startLat = segment['start_latlng'][0];
+        final startLng = segment['start_latlng'][1];
+        
+        _segmentMarkers.add(
+          Marker(
+            markerId: MarkerId(id),
+            position: LatLng(startLat, startLng),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+            consumeTapEvents: true,
+            onTap: () {
+               _showSegmentDetails(segment);
+            },
+          ),
+        );
+      }
+    });
+  }
+
+  void _showSegmentDetails(Map<String, dynamic> segment) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF2D2D2D),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.directions_bike, color: Color(0xFFFC4C02)), 
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    segment['name'],
+                    style: const TextStyle(
+                      color: Colors.white, 
+                      fontSize: 20, 
+                      fontWeight: FontWeight.bold
+                    ),
+                  ),
+                ),
+                IconButton(
+                   icon: const Icon(Icons.star_border, color: Colors.white),
+                   onPressed: () {}, 
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildSegmentStat('Distance', '${(segment['distance'] / 1000).toStringAsFixed(1)} km'),
+                _buildSegmentStat('Avg Grade', '${segment['avg_grade']}%'),
+                _buildSegmentStat('Cat', '${segment['climb_category_desc'] ?? "-"}'),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFC4C02),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                     Navigator.pop(context);
+                },
+                child: const Text('View on Strava'),
+              ),
+            ),
+             const SizedBox(height: 12),
+             SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: CruizrTheme.accentPink,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                     final polylineEncoded = segment['points'];
+                     if (polylineEncoded != null && polylineEncoded.isNotEmpty) {
+                        Navigator.pop(context);
+                        final points = PolylinePoints().decodePolyline(polylineEncoded);
+                        final latLngs = points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+                        
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FollowRouteScreen(
+                              routePoints: latLngs,
+                              waypoints: [latLngs.first, latLngs.last],
+                              distanceKm: (segment['distance'] ?? 0) / 1000.0,
+                              durationMinutes: 30, 
+                              elevationGain: (segment['elev_difference'] ?? 0).toDouble(), // Pass elevation
+                            ),
+                          ),
+                        );
+                     } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                           const SnackBar(content: Text('Route path not available')),
+                        );
+                     }
+                },
+                child: const Text('Start Route'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSegmentStat(String label, String value) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+      ],
     );
   }
 }

@@ -51,6 +51,19 @@
 	<string>Cruizr needs your location to track your cycling activities in the background.</string>
 	<key>GOOGLE_MAPS_API_KEY</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>cruizr</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>cruizr</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
 

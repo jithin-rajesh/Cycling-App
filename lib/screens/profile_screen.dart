@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cruizr_switch.dart';
+import '../services/strava_service.dart';
+
 
 
 class ProfileScreen extends StatefulWidget {
@@ -39,6 +41,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _activityReminders = true;
   bool _communityUpdates = true;
   bool _achievementCelebrations = false;
+  
+  // Connected Apps
+  bool _isStravaConnected = false;
 
   final List<String> _pronounOptions = [
     'he/him',
@@ -72,6 +77,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _checkStravaStatus();
+  }
+  
+  Future<void> _checkStravaStatus() async {
+    final connected = await StravaService().isAuthenticated();
+    if (mounted) {
+        setState(() => _isStravaConnected = connected);
+    }
   }
 
   @override
@@ -243,6 +256,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildSectionTitle('Notifications'),
                     const SizedBox(height: 16),
                     _buildNotificationsSection(),
+                    const SizedBox(height: 32),
+                    
+                    // Connected Apps
+                    _buildSectionTitle('Connected Apps'),
+                    const SizedBox(height: 16),
+                    _buildConnectedAppsSection(),
                     const SizedBox(height: 32),
                     
                     // Sign Out Button
@@ -826,6 +845,163 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(width: 12),
         Text(title, style: Theme.of(context).textTheme.bodyLarge),
       ],
+    );
+  }
+
+  Widget _buildConnectedAppsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CruizrTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              // Strava Icon
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFC4C02), // Strava Orange
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Center(
+                  child: Text(
+                    'S',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Strava',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      'Sync activities & routes',
+                      style: TextStyle(
+                         color: Colors.grey,
+                         fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isStravaConnected)
+                TextButton(
+                  onPressed: () async {
+                      await StravaService().disconnect();
+                      await _checkStravaStatus();
+                  },
+                  child: const Text('Disconnect', style: TextStyle(color: Colors.red)),
+                )
+              else
+                ElevatedButton(
+                  onPressed: () async {
+                    await StravaService().authenticate();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFC4C02),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('Connect'),
+                ),
+                // Fallback for Desktop/Web where deep links might fail
+                // Fallback for manual code entry
+                Padding(
+                     padding: const EdgeInsets.only(left: 8),
+                     child: TextButton(
+                       onPressed: _showManualAuthDialog,
+                       child: const Text('Enter Code', style: TextStyle(fontSize: 10)),
+                     ),
+                  ),
+            ],
+          ),
+          if (_isStravaConnected) ...[
+             const Padding(
+               padding: EdgeInsets.symmetric(vertical: 12),
+               child: Divider(),
+             ),
+             Row(
+               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+               children: [
+                 const Text('Auto-upload activities'),
+                 CruizrSwitch(value: true, onChanged: (val) {}), 
+               ],
+             ),
+          ]
+        ],
+      ),
+    );
+  }
+
+  void _showManualAuthDialog() {
+    final TextEditingController codeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Manual Authentication'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'If the browser does not redirect automatically, copy the "code" parameter from the URL bar and paste it here.',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: codeController,
+              decoration: const InputDecoration(
+                labelText: 'Authorization Code',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final code = codeController.text.trim();
+              if (code.isNotEmpty) {
+                 Navigator.pop(context); // Close dialog first
+                 final success = await StravaService().handleAuthCallback(code);
+                 
+                 if (!context.mounted) return; // Check context directly
+                 
+                 ScaffoldMessenger.of(context).showSnackBar(
+                   SnackBar(content: Text(success ? 'Connected!' : 'Failed to connect')),
+                 );
+                 
+                 if (success) {
+                     await _checkStravaStatus();
+                 }
+              }
+            },
+            child: const Text('Verify'),
+          ),
+        ],
+      ),
     );
   }
 
