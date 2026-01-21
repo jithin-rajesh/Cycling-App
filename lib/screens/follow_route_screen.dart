@@ -12,6 +12,7 @@ class FollowRouteScreen extends StatefulWidget {
   final List<LatLng> waypoints;
   final double distanceKm;
   final int durationMinutes;
+  final double elevationGain; // Added
 
   const FollowRouteScreen({
     super.key,
@@ -19,6 +20,7 @@ class FollowRouteScreen extends StatefulWidget {
     required this.waypoints,
     required this.distanceKm,
     required this.durationMinutes,
+    this.elevationGain = 0.0,
   });
 
   @override
@@ -512,7 +514,7 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStat('Distance', '${_distanceTraveled.toStringAsFixed(2)} km'),
-          _buildStat('Time', _formatDuration(_elapsedTime)),
+          _buildStat('Elevation', '${widget.elevationGain.toStringAsFixed(0)} m'),
           _buildStat('Remaining', '${(widget.distanceKm - _distanceTraveled).clamp(0, double.infinity).toStringAsFixed(1)} km'),
         ],
       ),

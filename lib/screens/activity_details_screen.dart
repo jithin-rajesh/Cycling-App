@@ -3,7 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../models/activity_model.dart';
-import 'dart:ui' as ui;
+
 
 class ActivityDetailsScreen extends StatefulWidget {
   final ActivityModel activity;

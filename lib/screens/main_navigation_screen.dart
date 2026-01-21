@@ -5,8 +5,14 @@ import 'profile_screen.dart';
 
 import 'routes_screen.dart';
 import 'start_activity_screen.dart';
+import 'community_screen.dart'; // Added
+import 'dart:async'; // Added for StreamSubscription
+import '../services/strava_service.dart'; // Added
 
-import 'community_screen.dart';
+import 'package:flutter/foundation.dart';
+import 'package:uni_links/uni_links.dart';
+
+
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -17,6 +23,69 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
+  StreamSubscription? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinkListener();
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  void _initDeepLinkListener() {
+    // Check for initial link if app was closed
+    getInitialLink().then((initialLink) {
+      if (initialLink != null) _handleLink(initialLink);
+    });
+
+    // Listen for links while app is open
+    // linkStream is not supported on Web and throws an error
+    if (!kIsWeb) {
+      _sub = linkStream.listen((String? link) {
+        if (link != null) _handleLink(link);
+      }, onError: (err) {
+        debugPrint('Deep Link Error: $err');
+      });
+    }
+  }
+
+  void _handleLink(String link) async {
+    // Check if it matches our Strava redirect scheme (host might vary like custom vs localhost)
+    if (link.contains('strava-callback')) {
+      final uri = Uri.parse(link);
+      final code = uri.queryParameters['code'];
+      final error = uri.queryParameters['error'];
+
+      if (error != null) {
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Strava connection failed: $error')),
+          );
+        }
+        return;
+      }
+
+      if (code != null) {
+        final success = await StravaService().handleAuthCallback(code);
+        if (mounted) {
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Successfully connected to Strava!')),
+            );
+          } else {
+             ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to exchange Strava token.')),
+            );
+          }
+        }
+      }
+    }
+  }
 
   final List<Widget> _screens = [
     const HomeScreen(),
