@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/activity_service.dart';
+import 'user_profile_screen.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -192,72 +193,88 @@ class _CommunityScreenState extends State<CommunityScreen> {
         ? '${user['distance'].toStringAsFixed(1)} km'
         : '${user['calories'].toStringAsFixed(0)} cal';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      decoration: BoxDecoration(
-        color: isMe && !isSticky ? CruizrTheme.accentPink.withValues(alpha: 0.1) : (isSticky ? Colors.white : Colors.white),
-        borderRadius: BorderRadius.circular(20),
-        border: isMe ? Border.all(color: CruizrTheme.accentPink.withValues(alpha: 0.5)) : null,
-      ),
-      child: Row(
-        children: [
-          // Rank
-          SizedBox(
-            width: 30,
-            child: Text(
-              '#$rank',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: rankColor,
-                fontStyle: FontStyle.italic,
+    return GestureDetector(
+      onTap: () {
+        if (user['uid'] != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => UserProfileScreen(
+                userId: user['uid'],
+                userName: user['name'],
+                avatarUrl: user['avatar'],
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          
-          // Avatar
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              shape: BoxShape.circle,
-              image: user['avatar'] != null
-                  ? DecorationImage(
-                      image: NetworkImage(user['avatar']),
-                      fit: BoxFit.cover,
-                    )
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        decoration: BoxDecoration(
+          color: isMe && !isSticky ? CruizrTheme.accentPink.withValues(alpha: 0.1) : (isSticky ? Colors.white : Colors.white),
+          borderRadius: BorderRadius.circular(20),
+          border: isMe ? Border.all(color: CruizrTheme.accentPink.withValues(alpha: 0.5)) : null,
+        ),
+        child: Row(
+          children: [
+            // Rank
+            SizedBox(
+              width: 30,
+              child: Text(
+                '#$rank',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: rankColor,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            
+            // Avatar
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                shape: BoxShape.circle,
+                image: user['avatar'] != null
+                    ? DecorationImage(
+                        image: NetworkImage(user['avatar']),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: user['avatar'] == null 
+                  ? const Icon(Icons.person, color: Colors.grey)
                   : null,
             ),
-            child: user['avatar'] == null 
-                ? const Icon(Icons.person, color: Colors.grey)
-                : null,
-          ),
-          const SizedBox(width: 16),
+            const SizedBox(width: 16),
 
-          // Name
-          Expanded(
-            child: Text(
-              user['name'],
-              style: TextStyle(
-                fontWeight: isMe ? FontWeight.bold : FontWeight.w600,
-                fontSize: 16,
-                color: const Color(0xFF2D2D2D),
+            // Name
+            Expanded(
+              child: Text(
+                user['name'],
+                style: TextStyle(
+                  fontWeight: isMe ? FontWeight.bold : FontWeight.w600,
+                  fontSize: 16,
+                  color: const Color(0xFF2D2D2D),
+                ),
               ),
             ),
-          ),
 
-          // Value
-          Text(
-            valueDisplay,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: Color(0xFF5D4037),
+            // Value
+            Text(
+              valueDisplay,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Color(0xFF5D4037),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

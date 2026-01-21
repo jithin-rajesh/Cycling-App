@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../theme/app_theme.dart';
 import '../widgets/cruizr_switch.dart';
 import '../services/strava_service.dart';
@@ -17,6 +20,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isUploadingImage = false;
   
   // Profile data
   String? _photoUrl;
@@ -51,6 +55,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'they/them',
     'other',
     'prefer not to say',
+  ];
+
+  // Generic Avatar Options (using DiceBear for persistent consistent avatars)
+  final List<String> _genericAvatars = [
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Felix',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Aneka',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Zack',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Sarah',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Milo',
   ];
 
   final List<Map<String, String>> _activities = [
@@ -133,7 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading profile: $e')),
@@ -150,6 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'photoUrl': _photoUrl, // Save the photo URL
         'preferredName': _preferredNameController.text.trim(),
         'pronouns': _selectedPronoun,
         'birthYear': int.tryParse(_birthYearController.text.trim()),
@@ -167,10 +181,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         },
       });
 
-      // Update display name if changed
+      // Update display name and photo URL in generic Auth profile as well
       final preferredName = _preferredNameController.text.trim();
       if (preferredName.isNotEmpty && preferredName != user.displayName) {
         await user.updateDisplayName(preferredName);
+      }
+      if (_photoUrl != null && _photoUrl != user.photoURL) {
+        await user.updatePhotoURL(_photoUrl);
       }
 
       if (mounted) {
@@ -197,6 +214,133 @@ class _ProfileScreenState extends State<ProfileScreen> {
     
     // Sign out to trigger AuthGate stream
     await FirebaseAuth.instance.signOut();
+  }
+
+  // IMAGE PICKER LOGIC
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Change Profile Photo',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontFamily: 'Playfair Display',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: CruizrTheme.accentPink.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.upload_file, color: CruizrTheme.accentPink),
+                ),
+                title: const Text('Upload Image'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage();
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text('Or choose a generic avatar:', style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 70,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _genericAvatars.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final avatarUrl = _genericAvatars[index];
+                    final isSelected = _photoUrl == avatarUrl;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _photoUrl = avatarUrl);
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
+                            width: 3,
+                          ),
+                          image: DecorationImage(image: NetworkImage(avatarUrl)),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512); // Limit size
+      
+      if (image != null) {
+        _uploadImage(File(image.path));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
+    }
+  }
+
+  Future<void> _uploadImage(File imageFile) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _isUploadingImage = true);
+
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('user_profiles')
+          .child('${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+      await storageRef.putFile(imageFile);
+      final downloadUrl = await storageRef.getDownloadURL();
+
+      setState(() {
+        _photoUrl = downloadUrl;
+        _isUploadingImage = false;
+      });
+      
+      // Auto-save just the image part so it feels snappy?
+      // Or just let user hit save. Let's let user hit save to be consistent with other fields.
+      // Actually, for profile pics, users expect immediate save usually. 
+      // But for this form, explicit save is safer.
+      
+    } catch (e) {
+      setState(() => _isUploadingImage = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error uploading image: $e')),
+      );
+    }
   }
 
   @override
@@ -318,27 +462,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           // Profile Photo
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: CruizrTheme.surface,
-              border: Border.all(color: CruizrTheme.border, width: 2),
-              image: _photoUrl != null
-                  ? DecorationImage(
-                      image: NetworkImage(_photoUrl!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
+          GestureDetector(
+            onTap: _showImageSourceDialog,
+            child: Stack(
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: CruizrTheme.surface,
+                    border: Border.all(color: CruizrTheme.border, width: 2),
+                    image: _photoUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(_photoUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: _photoUrl == null
+                      ? const Icon(
+                          Icons.person,
+                          size: 48,
+                          color: CruizrTheme.textSecondary,
+                        )
+                      : null,
+                ),
+                if (_isUploadingImage)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.black26,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+                    ),
+                  ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: CruizrTheme.accentPink,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Icon(Icons.edit, size: 14, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
-            child: _photoUrl == null
-                ? const Icon(
-                    Icons.person,
-                    size: 48,
-                    color: CruizrTheme.textSecondary,
-                  )
-                : null,
           ),
           const SizedBox(height: 12),
           Text(
@@ -372,6 +546,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildPersonalInfoSection() {
     return Container(
       padding: const EdgeInsets.all(20),
+      // ... (rest is same)
+
       decoration: BoxDecoration(
         color: CruizrTheme.surface,
         borderRadius: BorderRadius.circular(20),

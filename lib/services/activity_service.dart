@@ -124,6 +124,7 @@ class ActivityService {
     return querySnapshot.docs.map((doc) {
       final data = doc.data();
       return {
+        'uid': doc.id, // Add UID for navigation
         'name': data['preferredName'] ?? data['displayName'] ?? 'Cruizr User',
         'distance': (data['totalDistance'] as num?)?.toDouble() ?? 0.0,
         'calories': (data['totalCalories'] as num?)?.toDouble() ?? 0.0,
