@@ -8,6 +8,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/main_navigation_screen.dart';
+import 'services/strava_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,9 +29,87 @@ class CruizrApp extends StatelessWidget {
       title: 'Cruizr',
       debugShowCheckedModeBanner: false,
       theme: CruizrTheme.themeData,
-      home: const AuthGate(),
+      home: const StravaCallbackWrapper(child: AuthGate()),
     );
   }
+}
+
+class StravaCallbackWrapper extends StatefulWidget {
+  final Widget child;
+  const StravaCallbackWrapper({super.key, required this.child});
+
+  @override
+  State<StravaCallbackWrapper> createState() => _StravaCallbackWrapperState();
+}
+
+class _StravaCallbackWrapperState extends State<StravaCallbackWrapper> {
+  bool _isProcessing = false;
+  String? _statusMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthCode();
+  }
+
+  Future<void> _checkAuthCode() async {
+    if (kIsWeb) {
+      final uri = Uri.base;
+      final code = uri.queryParameters['code'];
+      
+      if (code != null) {
+        setState(() {
+          _isProcessing = true;
+          _statusMessage = "Connecting to Strava...";
+        });
+
+        final success = await StravaService().handleAuthCallback(code);
+
+        if (mounted) {
+           setState(() {
+             _statusMessage = success ? "Connected! Redirecting..." : "Connection failed.";
+           });
+           
+           // Small delay to read message
+           await Future.delayed(const Duration(seconds: 2));
+           
+           setState(() {
+             _isProcessing = false;
+           });
+           
+           // TODO: Ideally clean up the URL here, but requires dart:html or external router
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isProcessing) {
+      return Scaffold(
+        backgroundColor: CruizrTheme.background,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: CruizrTheme.accentPink),
+              const SizedBox(height: 16),
+              Text(
+                _statusMessage ?? "Processing...",
+                style: const TextStyle(
+                  color: CruizrTheme.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return widget.child;
+  }
+
 }
 
 class AuthGate extends StatelessWidget {

@@ -9,7 +9,8 @@ class StravaService {
   static const String clientId = "196883";
   static const String clientSecret = "42ec1cd5571151e1f11f7f947b301256e076b763";
   
-  static const String redirectUrl = "http://localhost/strava-callback";
+  // static const String redirectUrl = "http://localhost/strava-callback"; // REMOVED
+
   static const String _baseUrl = "https://www.strava.com/api/v3";
   
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -24,19 +25,31 @@ class StravaService {
     return token != null;
   }
 
-  /// Initiates the OAuth2 flow by opening the Strava authorization page in the browser
   Future<void> authenticate() async {
+    String redirectUrl;
+    
+    // Logic: 
+    // - Linux (Web or Desktop): Use localhost (Legacy/Manual flow)
+    // - Non-Linux Web (Windows, Mobile): Use dynamic origin (Auto-flow)
+    // - Non-Linux Desktop/Mobile App: Use localhost (Default/Deep link placeholder)
+    
+    if (kIsWeb && defaultTargetPlatform != TargetPlatform.linux) {
+      redirectUrl = Uri.base.origin; 
+    } else {
+      redirectUrl = "http://localhost/strava-callback"; 
+    }
+
     final Uri url = Uri.parse(
       'https://www.strava.com/oauth/authorize'
       '?client_id=$clientId'
       '&response_type=code'
       '&redirect_uri=$redirectUrl'
       '&approval_prompt=force'
-      '&scope=activity:write,activity:read_all,profile:read_all,read_all' // Added read_all for segments if needed
+      '&scope=activity:write,activity:read_all,profile:read_all,read_all'
     );
 
     if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+      await launchUrl(url, mode: LaunchMode.platformDefault);
     } else {
       throw 'Could not launch $url';
     }
