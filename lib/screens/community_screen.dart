@@ -1,8 +1,8 @@
-
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/activity_service.dart';
 import 'user_profile_screen.dart';
+import 'clubs_tab.dart'; // Import ClubsTab
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -11,20 +11,30 @@ class CommunityScreen extends StatefulWidget {
   State<CommunityScreen> createState() => _CommunityScreenState();
 }
 
-class _CommunityScreenState extends State<CommunityScreen> {
+class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  
+  // Leaderboard State
   String _selectedMetric = 'distance'; // 'distance' or 'calories'
   List<Map<String, dynamic>> _leaderboard = [];
-  bool _isLoading = true;
+  bool _isLoadingLeaderboard = true;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadLeaderboard();
+  }
+  
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLeaderboard() async {
     setState(() {
-      _isLoading = true;
+      _isLoadingLeaderboard = true;
     });
 
     final data = await ActivityService().getLeaderboard(_selectedMetric);
@@ -32,7 +42,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     if (mounted) {
       setState(() {
         _leaderboard = data;
-        _isLoading = false;
+        _isLoadingLeaderboard = false;
       });
     }
   }
@@ -48,10 +58,6 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final myRankValues = _leaderboard.where((u) => u['isMe'] == true);
-    final myData = myRankValues.isNotEmpty ? myRankValues.first : null;
-    final myRankIndex = _leaderboard.indexWhere((u) => u['isMe'] == true);
-
     return Scaffold(
       backgroundColor: CruizrTheme.background,
       body: SafeArea(
@@ -86,70 +92,118 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 ],
               ),
             ),
-
-            // Toggle Stats
+            
+            // Tabs
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(25),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
                 ],
               ),
-              child: Row(
-                children: [
-                  _buildToggleItem('Distance', 'distance'),
-                  _buildToggleItem('Calories', 'calories'),
+              child: TabBar(
+                controller: _tabController,
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(25),
+                  color: CruizrTheme.accentPink,
+                ),
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.grey,
+                indicatorSize: TabBarIndicatorSize.tab,
+                tabs: const [
+                  Tab(text: "Leaderboard"),
+                  Tab(text: "Clubs"),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-            // Leaderboard List
+            // Tab View
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _leaderboard.isEmpty 
-                      ? Center(child: Text("No community activity yet.\nBe the first!", textAlign: TextAlign.center, style: TextStyle(color: CruizrTheme.textSecondary)))
-                      : ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                      itemCount: _leaderboard.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final user = _leaderboard[index];
-                        final isMe = user['isMe'] == true;
-                        return _buildUserRow(index + 1, user, isMe: isMe);
-                      },
-                    ),
-            ),
-            
-            // "Your Rank" Sticky Bar (if you are in the list)
-            if (!_isLoading && myData != null)
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, -5)),
-                  ],
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Your Rank",
-                      style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildUserRow(myRankIndex + 1, myData, isMe: true, isSticky: true),
-                  ],
-                ),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildLeaderboardTab(),
+                  const ClubsTab(),
+                ],
               ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLeaderboardTab() {
+    final myRankValues = _leaderboard.where((u) => u['isMe'] == true);
+    final myData = myRankValues.isNotEmpty ? myRankValues.first : null;
+    final myRankIndex = _leaderboard.indexWhere((u) => u['isMe'] == true);
+
+    return Column(
+      children: [
+        // Toggle Stats
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+            ],
+          ),
+          child: Row(
+            children: [
+              _buildToggleItem('Distance', 'distance'),
+              _buildToggleItem('Calories', 'calories'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Leaderboard List
+        Expanded(
+          child: _isLoadingLeaderboard
+              ? const Center(child: CircularProgressIndicator())
+              : _leaderboard.isEmpty 
+                  ? Center(child: Text("No community activity yet.\nBe the first!", textAlign: TextAlign.center, style: TextStyle(color: CruizrTheme.textSecondary)))
+                  : ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  itemCount: _leaderboard.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final user = _leaderboard[index];
+                    final isMe = user['isMe'] == true;
+                    return _buildUserRow(index + 1, user, isMe: isMe);
+                  },
+                ),
+        ),
+        
+        // "Your Rank" Sticky Bar (if you are in the list)
+        if (!_isLoadingLeaderboard && myData != null)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -5)),
+              ],
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            child: Column(
+              children: [
+                const Text(
+                  "Your Rank",
+                  style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                _buildUserRow(myRankIndex + 1, myData, isMe: true, isSticky: true),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -186,7 +240,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     } else if (rank == 3) {
       rankColor = const Color(0xFFCD7F32); // Bronze
     } else {
-      rankColor = Colors.grey.withValues(alpha: 0.5);
+      rankColor = Colors.grey.withOpacity(0.5);
     }
 
     final valueDisplay = _selectedMetric == 'distance'
@@ -211,9 +265,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         decoration: BoxDecoration(
-          color: isMe && !isSticky ? CruizrTheme.accentPink.withValues(alpha: 0.1) : (isSticky ? Colors.white : Colors.white),
+          color: isMe && !isSticky ? CruizrTheme.accentPink.withOpacity(0.1) : (isSticky ? Colors.white : Colors.white),
           borderRadius: BorderRadius.circular(20),
-          border: isMe ? Border.all(color: CruizrTheme.accentPink.withValues(alpha: 0.5)) : null,
+          border: isMe ? Border.all(color: CruizrTheme.accentPink.withOpacity(0.5)) : null,
         ),
         child: Row(
           children: [

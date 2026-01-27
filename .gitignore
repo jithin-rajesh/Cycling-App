@@ -51,22 +51,3 @@ app.*.map.json
 # Coverage
 coverage/
 .vercel
-
-# Firebase
-.firebase/
-firebase-debug.log
-firestore-debug.log
-ui-debug.log
-
-# iOS
-ios/Flutter/Generated.xcconfig
-ios/Flutter/flutter_export_environment.sh
-
-# Desktop Ephemeral
-linux/flutter/ephemeral/
-windows/flutter/ephemeral/
-macos/Flutter/ephemeral/
-
-lib/firebase_options.dart
-
-.vscode/launch.json

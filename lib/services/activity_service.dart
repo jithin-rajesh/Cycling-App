@@ -51,6 +51,32 @@ class ActivityService {
         'lastActivity': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     });
+
+    // Check for badges/tiers
+    await _checkAndAwardBadges(user.uid, activity.distance);
+  }
+
+  Future<void> _checkAndAwardBadges(String uid, double currentActivityDistance) async {
+    // Fetch total distance
+    final userDoc = await _firestore.collection('users').doc(uid).get();
+    if (!userDoc.exists) return;
+
+    final data = userDoc.data()!;
+    final totalDistance = (data['totalDistance'] as num?)?.toDouble() ?? 0.0;
+
+    String newTier = 'Relaxed';
+    if (totalDistance >= 500) {
+      newTier = 'Hypertraining';
+    } else if (totalDistance >= 150) {
+      newTier = 'Athletic';
+    } else if (totalDistance >= 50) {
+      newTier = 'Intermediate';
+    }
+
+    // Update tier if changed (or just always update for simplicity)
+    await _firestore.collection('users').doc(uid).update({
+      'badgeTier': newTier,
+    });
   }
   
   // Get weekly stats
