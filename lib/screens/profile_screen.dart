@@ -34,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   
   // Activity level
   String? _activityLevel;
+  String? _badgeTier; // Computed tier from activity
   String _measurementSystem = 'metric';
   
   // Privacy settings
@@ -129,6 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           
           _selectedActivities = Set<String>.from(data['activities'] ?? []);
           _activityLevel = data['activityLevel'];
+          _badgeTier = data['badgeTier'] ?? 'Relaxed';
           _measurementSystem = data['measurementSystem'] ?? 'metric';
           
           _profileVisibility = data['profileVisibility'] ?? 'public';
@@ -376,6 +378,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildSectionTitle('Personal Info'),
                     const SizedBox(height: 16),
                     _buildPersonalInfoSection(),
+                    const SizedBox(height: 32),
+
+                    // Earned Badges Section
+                    _buildSectionTitle('Current Status'),
+                    const SizedBox(height: 16),
+                    _buildEarnedBadgesSection(),
                     const SizedBox(height: 32),
                     
                     // Activities Section
@@ -629,6 +637,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEarnedBadgesSection() {
+    Color tierColor;
+    IconData tierIcon;
+    String description;
+
+    switch (_badgeTier) {
+      case 'Hypertraining':
+        tierColor = Colors.purple;
+        tierIcon = Icons.flash_on;
+        description = 'Top tier! You are a machine.';
+        break;
+      case 'Athletic':
+        tierColor = Colors.orange;
+        tierIcon = Icons.fitness_center;
+        description = 'Great consistency and high activity.';
+        break;
+      case 'Intermediate':
+        tierColor = Colors.blue;
+        tierIcon = Icons.directions_run;
+        description = 'Making good progress.';
+        break;
+      case 'Relaxed':
+      default:
+        tierColor = Colors.green;
+        tierIcon = Icons.weekend;
+        description = 'Just getting started or taking it easy.';
+        break;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: tierColor.withOpacity(0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: tierColor.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(tierIcon, size: 48, color: tierColor),
+          const SizedBox(height: 12),
+          Text(
+            _badgeTier ?? 'Relaxed',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: tierColor,
+              fontFamily: 'Playfair Display',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: TextStyle(color: CruizrTheme.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
