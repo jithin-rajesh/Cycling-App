@@ -50,14 +50,14 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
         'location': widget.profileData['location'],
         'photoUrl': widget.profileData['photoUrl'],
         'email': user.email,
-        
+
         // Activities from step 2
         'activities': widget.selectedActivities,
-        
+
         // Activity level from step 2
         'activityLevel': widget.activityLevel,
         'measurementSystem': widget.measurementSystem,
-        
+
         // Privacy settings from step 3
         'profileVisibility': _profileVisibility,
         'activitySharing': _activitySharing,
@@ -67,7 +67,7 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
           'communityUpdates': _communityUpdates,
           'achievementCelebrations': _achievementCelebrations,
         },
-        
+
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -110,10 +110,9 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
           'Privacy &\nSafety',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontStyle: FontStyle.italic,
-            fontSize: 18,
-            height: 1.2,
-          ),
+                fontSize: 18,
+                height: 1.2,
+              ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: CruizrTheme.textPrimary),
@@ -130,9 +129,9 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
             child: Text(
               'Step 3 of 3',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: CruizrTheme.accentPink,
-                fontWeight: FontWeight.w500,
-              ),
+                    color: CruizrTheme.accentPink,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ),
         ],
@@ -161,9 +160,9 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
                   Text(
                     'Your safety &\nprivacy choices',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: 32,
-                      height: 1.2,
-                    ),
+                          fontSize: 32,
+                          height: 1.2,
+                        ),
                   ),
                   const SizedBox(height: 32),
 
@@ -171,16 +170,16 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
                   Text(
                     'Profile Visibility',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      fontStyle: FontStyle.italic,
-                    ),
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
                   const SizedBox(height: 12),
                   _buildThreeWayToggle(
                     options: ['Public', 'Community', 'Private'],
                     values: ['public', 'community', 'private'],
                     selectedValue: _profileVisibility,
-                    onChanged: (value) => setState(() => _profileVisibility = value),
+                    onChanged: (value) =>
+                        setState(() => _profileVisibility = value),
                   ),
                   const SizedBox(height: 24),
 
@@ -188,16 +187,16 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
                   Text(
                     'Activity Sharing',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      fontStyle: FontStyle.italic,
-                    ),
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
                   const SizedBox(height: 12),
                   _buildThreeWayToggle(
                     options: ['Everyone', 'Followers', 'Only Me'],
                     values: ['everyone', 'followers', 'only_me'],
                     selectedValue: _activitySharing,
-                    onChanged: (value) => setState(() => _activitySharing = value),
+                    onChanged: (value) =>
+                        setState(() => _activitySharing = value),
                   ),
                   const SizedBox(height: 24),
 
@@ -205,9 +204,8 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
                   Text(
                     'Safety Features',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      fontStyle: FontStyle.italic,
-                    ),
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
                   const SizedBox(height: 12),
                   Container(
@@ -224,23 +222,30 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
                             children: [
                               Text(
                                 'Live Activity Sharing',
-                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                    ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 'Share real-time location with selected contacts',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontSize: 12,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontSize: 12,
+                                    ),
                               ),
                             ],
                           ),
                         ),
                         CruizrSwitch(
                           value: _liveActivitySharing,
-                          onChanged: (value) => setState(() => _liveActivitySharing = value),
+                          onChanged: (value) =>
+                              setState(() => _liveActivitySharing = value),
                         ),
                       ],
                     ),
@@ -251,9 +256,8 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
                   Text(
                     'Stay Connected',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      fontStyle: FontStyle.italic,
-                    ),
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
                   const SizedBox(height: 12),
                   Container(
@@ -267,19 +271,22 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
                         _buildCheckboxTile(
                           'Activity reminders',
                           _activityReminders,
-                          (value) => setState(() => _activityReminders = value ?? false),
+                          (value) => setState(
+                              () => _activityReminders = value ?? false),
                         ),
                         const Divider(height: 1),
                         _buildCheckboxTile(
                           'Community updates',
                           _communityUpdates,
-                          (value) => setState(() => _communityUpdates = value ?? false),
+                          (value) => setState(
+                              () => _communityUpdates = value ?? false),
                         ),
                         const Divider(height: 1),
                         _buildCheckboxTile(
                           'Achievement celebrations',
                           _achievementCelebrations,
-                          (value) => setState(() => _achievementCelebrations = value ?? false),
+                          (value) => setState(
+                              () => _achievementCelebrations = value ?? false),
                         ),
                       ],
                     ),
@@ -365,8 +372,11 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeOutCubic,
                           style: TextStyle(
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                            color: isSelected ? CruizrTheme.primaryDark : CruizrTheme.textSecondary,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w400,
+                            color: isSelected
+                                ? CruizrTheme.primaryDark
+                                : CruizrTheme.textSecondary,
                             fontSize: 13,
                           ),
                           child: Text(options[index]),
@@ -383,7 +393,8 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
     );
   }
 
-  Widget _buildCheckboxTile(String title, bool value, ValueChanged<bool?> onChanged) {
+  Widget _buildCheckboxTile(
+      String title, bool value, ValueChanged<bool?> onChanged) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -395,7 +406,8 @@ class _PrivacySafetyScreenState extends State<PrivacySafetyScreen> {
               value: value,
               onChanged: onChanged,
               activeColor: CruizrTheme.primaryDark,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4)),
             ),
           ),
           const SizedBox(width: 12),

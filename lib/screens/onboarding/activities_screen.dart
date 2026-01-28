@@ -9,7 +9,7 @@ class ActivitiesScreen extends StatefulWidget {
   final List<String> preSelectedActivities;
 
   const ActivitiesScreen({
-    super.key, 
+    super.key,
     this.profileData,
     this.isExploreMode = false,
     this.preSelectedActivities = const [],
@@ -54,7 +54,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
     } else {
       // Standard Profile Setup Flow
       if (widget.profileData == null) return; // Should not happen in this flow
-      
+
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ActivityLevelScreen(
@@ -77,10 +77,9 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
         title: Text(
           'Choose Activities',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontStyle: FontStyle.italic,
-            fontSize: 20,
-            color: CruizrTheme.textPrimary,
-          ),
+                fontSize: 20,
+                color: CruizrTheme.textPrimary,
+              ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: CruizrTheme.textPrimary),
@@ -99,18 +98,18 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                   Text(
                     'What moves you?',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: 28,
-                      fontFamily: 'Playfair Display',
-                      fontWeight: FontWeight.w600,
-                    ),
+                          fontSize: 28,
+                          fontFamily: 'Playfair Display',
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Select all activities that match your rhythm',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: CruizrTheme.textSecondary,
-                      fontSize: 16,
-                    ),
+                          color: CruizrTheme.textSecondary,
+                          fontSize: 16,
+                        ),
                   ),
                   const SizedBox(height: 32),
 
@@ -118,7 +117,8 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
@@ -127,8 +127,9 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                     itemCount: _activities.length,
                     itemBuilder: (context, index) {
                       final activity = _activities[index];
-                      final isSelected = _selectedActivities.contains(activity['id']);
-                      
+                      final isSelected =
+                          _selectedActivities.contains(activity['id']);
+
                       return GestureDetector(
                         onTap: () {
                           setState(() {
@@ -142,18 +143,23 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           decoration: BoxDecoration(
-                            color: isSelected ? CruizrTheme.surface : const Color(0xFFFDF8F6), // Slightly lighter than bg
+                            color: isSelected
+                                ? CruizrTheme.surface
+                                : const Color(
+                                    0xFFFDF8F6), // Slightly lighter than bg
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
+                              color: isSelected
+                                  ? CruizrTheme.accentPink
+                                  : Colors.transparent,
                               width: 2,
                             ),
                             boxShadow: [
-                                BoxShadow(
-                                  color: Colors.brown.withValues(alpha: 0.03),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
+                              BoxShadow(
+                                color: Colors.brown.withValues(alpha: 0.03),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
                             ],
                           ),
                           child: Column(
@@ -168,10 +174,13 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                               // Label
                               Text(
                                 activity['name']!,
-                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: CruizrTheme.textPrimary,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: CruizrTheme.textPrimary,
+                                    ),
                               ),
                             ],
                           ),
@@ -186,30 +195,33 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
           ),
           // Bottom Button should be sticky
           Container(
-             width: double.infinity,
-             padding: const EdgeInsets.all(24.0),
-             decoration: BoxDecoration(
-               color: CruizrTheme.background,
-               gradient: LinearGradient(
-                 begin: Alignment.topCenter,
-                 end: Alignment.bottomCenter,
-                 colors: [
-                   CruizrTheme.background.withValues(alpha: 0),
-                   CruizrTheme.background,
-                 ],
-                 stops: const [0.0, 0.3],
-               ),
-             ),
-             child: FilledButton(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24.0),
+            decoration: BoxDecoration(
+              color: CruizrTheme.background,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  CruizrTheme.background.withValues(alpha: 0),
+                  CruizrTheme.background,
+                ],
+                stops: const [0.0, 0.3],
+              ),
+            ),
+            child: FilledButton(
               onPressed: _selectedActivities.isNotEmpty ? _goToNextStep : null,
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(widget.isExploreMode ? 'Continue to Sign Up' : 'Next Step'),
+                  Text(widget.isExploreMode
+                      ? 'Continue to Sign Up'
+                      : 'Next Step'),
                   const SizedBox(width: 8),
                   const Icon(Icons.arrow_forward, size: 18),
                 ],

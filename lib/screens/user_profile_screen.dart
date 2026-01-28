@@ -47,7 +47,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    
+
     // Parallel fetch
     final results = await Future.wait([
       _userService.getUserProfile(widget.userId),
@@ -92,12 +92,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   void _navigateToRoute(Map<String, dynamic> routeData) {
     // Convert stored data back to LatLng
     final routePointsList = (routeData['routePoints'] as List?)?.map((p) {
-      return LatLng(p['lat'] as double, p['lng'] as double);
-    }).toList() ?? [];
+          return LatLng(p['lat'] as double, p['lng'] as double);
+        }).toList() ??
+        [];
 
     final waypointsList = (routeData['waypoints'] as List?)?.map((p) {
-      return LatLng(p['lat'] as double, p['lng'] as double);
-    }).toList() ?? [];
+          return LatLng(p['lat'] as double, p['lng'] as double);
+        }).toList() ??
+        [];
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -171,7 +173,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: CruizrTheme.surface,
-                              border: Border.all(color: CruizrTheme.border, width: 2),
+                              border: Border.all(
+                                  color: CruizrTheme.border, width: 2),
                               image: avatar != null
                                   ? DecorationImage(
                                       image: NetworkImage(avatar),
@@ -180,7 +183,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   : null,
                             ),
                             child: avatar == null
-                                ? const Icon(Icons.person, size: 48, color: Colors.grey)
+                                ? const Icon(Icons.person,
+                                    size: 48, color: Colors.grey)
                                 : null,
                           ),
                           const SizedBox(height: 16),
@@ -205,7 +209,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                              const Icon(Icons.location_on,
+                                  size: 16, color: Colors.grey),
                               const SizedBox(width: 4),
                               Text(
                                 location,
@@ -216,17 +221,29 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               ),
                             ],
                           ),
-                          
+
                           const SizedBox(height: 24),
 
                           // Stats Row
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              _buildStatItem('Followers', _followCounts['followers'] ?? 0),
-                              Container(width: 1, height: 30, color: Colors.grey[300], margin: const EdgeInsets.symmetric(horizontal: 24)),
-                              _buildStatItem('Following', _followCounts['following'] ?? 0),
-                              Container(width: 1, height: 30, color: Colors.grey[300], margin: const EdgeInsets.symmetric(horizontal: 24)),
+                              _buildStatItem(
+                                  'Followers', _followCounts['followers'] ?? 0),
+                              Container(
+                                  width: 1,
+                                  height: 30,
+                                  color: Colors.grey[300],
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 24)),
+                              _buildStatItem(
+                                  'Following', _followCounts['following'] ?? 0),
+                              Container(
+                                  width: 1,
+                                  height: 30,
+                                  color: Colors.grey[300],
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 24)),
                               _buildStatItem('Routes', _userRoutes.length),
                             ],
                           ),
@@ -240,12 +257,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               child: ElevatedButton(
                                 onPressed: _toggleFollow,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _isFollowing ? Colors.white : CruizrTheme.accentPink,
-                                  foregroundColor: _isFollowing ? CruizrTheme.accentPink : Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  backgroundColor: _isFollowing
+                                      ? Colors.white
+                                      : CruizrTheme.accentPink,
+                                  foregroundColor: _isFollowing
+                                      ? CruizrTheme.accentPink
+                                      : Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30),
-                                    side: BorderSide(color: CruizrTheme.accentPink),
+                                    side: BorderSide(
+                                        color: CruizrTheme.accentPink),
                                   ),
                                   elevation: _isFollowing ? 0 : 2,
                                 ),
@@ -258,9 +281,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 ),
                               ),
                             ),
-                          
+
                           const SizedBox(height: 32),
-                          
+
                           // Section Title
                           const Align(
                             alignment: Alignment.centerLeft,
@@ -270,7 +293,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 fontFamily: 'Playfair Display',
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                fontStyle: FontStyle.italic,
                               ),
                             ),
                           ),
@@ -299,7 +321,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         (context, index) {
                           final route = _userRoutes[index];
                           return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 10),
                             child: RouteCard(
                               route: route,
                               routeId: route['id'],
@@ -311,7 +334,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         childCount: _userRoutes.length,
                       ),
                     ),
-                    
+
                   const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
                 ],
               ),

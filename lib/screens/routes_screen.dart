@@ -256,7 +256,6 @@ class _RoutesScreenState extends State<RoutesScreen> {
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Color(0xFF2D2D2D),
-              fontStyle: FontStyle.italic,
             ),
           ),
 

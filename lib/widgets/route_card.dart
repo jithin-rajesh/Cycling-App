@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../theme/app_theme.dart';
+import '../utils/polyline_encoder.dart';
 
 class RouteCard extends StatelessWidget {
   final Map<String, dynamic> route;
@@ -15,6 +18,28 @@ class RouteCard extends StatelessWidget {
     this.onDelete,
   });
 
+  String _generateStaticMapUrl(List<LatLng> points) {
+    const String apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+    if (apiKey.isEmpty || points.isEmpty) return '';
+
+    final encodedPolyline = PolylineEncoder.encode(points);
+
+    // Style matches the cream/pink theme
+    // const style = '&style=feature:all|element:geometry|color:0xf5ebe9'
+    //     '&style=feature:water|element:geometry|color:0xd7ccc8'
+    //     '&style=feature:road|element:geometry|color:0xfdf6f5'
+    //     '&style=feature:road|element:geometry.stroke|color:0xe0d4d4';
+
+    const style = '&style=feature:poi|visibility:off';
+
+    return 'https://maps.googleapis.com/maps/api/staticmap?'
+        'size=600x300'
+        '&maptype=roadmap'
+        '&path=weight:4%7Ccolor:0xFC4C02%7Cenc:$encodedPolyline'
+        '$style'
+        '&key=$apiKey';
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = route['name'] as String? ?? 'Unnamed Route';
@@ -22,6 +47,14 @@ class RouteCard extends StatelessWidget {
     final durationMinutes = (route['durationMinutes'] as num?)?.toInt() ?? 0;
     final elevation = (route['elevation'] as num?)?.toInt() ?? 0;
     final routeType = route['routeType'] as int? ?? 1;
+
+    // Parse route points for preview
+    final routePointsList = (route['routePoints'] as List?)?.map((p) {
+          return LatLng(p['lat'] as double, p['lng'] as double);
+        }).toList() ??
+        [];
+
+    final mapUrl = _generateStaticMapUrl(routePointsList);
 
     String routeTypeLabel;
     switch (routeType) {
@@ -52,31 +85,71 @@ class RouteCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Route preview placeholder
+            // Route preview
             Stack(
               children: [
-                Container(
+                SizedBox(
                   height: 120,
-                  decoration: BoxDecoration(
-                    color: CruizrTheme.accentPink.withValues(alpha: 0.1),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.route,
-                      size: 48,
-                      color: CruizrTheme.accentPink.withValues(alpha: 0.5),
-                    ),
+                  width: double.infinity,
+                  child: ClipRRect(
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(24)),
+                    child: mapUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: mapUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color:
+                                  CruizrTheme.accentPink.withValues(alpha: 0.1),
+                              child: Center(
+                                child: Icon(
+                                  Icons.map,
+                                  color: CruizrTheme.accentPink
+                                      .withValues(alpha: 0.3),
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color:
+                                  CruizrTheme.accentPink.withValues(alpha: 0.1),
+                              child: Center(
+                                child: Icon(
+                                  Icons.broken_image,
+                                  color: CruizrTheme.accentPink
+                                      .withValues(alpha: 0.3),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color:
+                                CruizrTheme.accentPink.withValues(alpha: 0.1),
+                            child: Center(
+                              child: Icon(
+                                Icons.route,
+                                size: 48,
+                                color: CruizrTheme.accentPink
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ),
                   ),
                 ),
                 Positioned(
                   top: 12,
                   right: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                        ),
+                      ],
                     ),
                     child: Text(
                       routeTypeLabel,
@@ -99,14 +172,21 @@ class RouteCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
-                        child: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                        child: const Icon(Icons.delete_outline,
+                            size: 18, color: Colors.red),
                       ),
                     ),
                   ),
               ],
             ),
-            
+
             // Info Content
             Padding(
               padding: const EdgeInsets.all(16),
@@ -125,7 +205,8 @@ class RouteCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _buildStat(Icons.straighten, '${distanceKm.toStringAsFixed(1)} km'),
+                      _buildStat(Icons.straighten,
+                          '${distanceKm.toStringAsFixed(1)} km'),
                       const SizedBox(width: 16),
                       _buildStat(Icons.terrain, '$elevation m'),
                       const SizedBox(width: 16),

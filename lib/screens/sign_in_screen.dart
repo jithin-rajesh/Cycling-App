@@ -11,7 +11,8 @@ class SignInScreen extends StatefulWidget {
   State<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderStateMixin {
+class _SignInScreenState extends State<SignInScreen>
+    with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
@@ -76,10 +77,12 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
 
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn(
-        clientId: '764206559936-uof1bq0upc1hpnopa8eo944t7f4ptsup.apps.googleusercontent.com',
+        clientId:
+            '764206559936-uof1bq0upc1hpnopa8eo944t7f4ptsup.apps.googleusercontent.com',
       ).signIn();
       if (googleUser != null) {
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
         final OAuthCredential credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
@@ -116,7 +119,8 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
               child: Column(
@@ -146,7 +150,8 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                             builder: (context, child) {
                               return Transform.scale(
                                 scale: _heartbeatAnimation.value,
-                                child: const Icon(Icons.favorite_rounded, size: 40, color: CruizrTheme.accentPink),
+                                child: const Icon(Icons.favorite_rounded,
+                                    size: 40, color: CruizrTheme.accentPink),
                               );
                             },
                           ),
@@ -154,18 +159,21 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                         const SizedBox(height: 24),
                         Text(
                           'Cruizr',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontSize: 36,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
+                                fontSize: 36,
+                              ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Your Rhythm. Your Journey.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                             fontStyle: FontStyle.italic,
-                             letterSpacing: 1.2,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    letterSpacing: 1.2,
+                                  ),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -186,7 +194,8 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(left: 4, bottom: 8),
-                        child: Text('Email Address', style: Theme.of(context).textTheme.bodyMedium),
+                        child: Text('Email Address',
+                            style: Theme.of(context).textTheme.bodyMedium),
                       ),
                       TextField(
                         controller: _emailController,
@@ -200,7 +209,8 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                       const SizedBox(height: 24),
                       Padding(
                         padding: const EdgeInsets.only(left: 4, bottom: 8),
-                        child: Text('Password', style: Theme.of(context).textTheme.bodyMedium),
+                        child: Text('Password',
+                            style: Theme.of(context).textTheme.bodyMedium),
                       ),
                       TextField(
                         controller: _passwordController,
@@ -211,7 +221,9 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                           hintText: '••••••••',
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                              _isPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
                               color: CruizrTheme.textSecondary,
                             ),
                             onPressed: () {
@@ -224,7 +236,7 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                       ),
                     ],
                   ),
-                  
+
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
@@ -234,14 +246,15 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                       child: Text(
                         'Forgot Password?',
                         style: TextStyle(
-                          color: CruizrTheme.textSecondary.withValues(alpha: 0.8),
+                          color:
+                              CruizrTheme.textSecondary.withValues(alpha: 0.8),
                           decoration: TextDecoration.underline,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   FilledButton(
                     onPressed: _isLoading ? null : _signInWithEmail,
                     child: _isLoading
@@ -257,7 +270,7 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                   ),
 
                   const SizedBox(height: 32),
-                  
+
                   // Divider
                   Row(
                     children: [
@@ -266,10 +279,10 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'or connect with',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontStyle: FontStyle.italic,
-                            fontSize: 12,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 12,
+                                  ),
                         ),
                       ),
                       const Expanded(child: Divider(color: CruizrTheme.border)),
@@ -281,22 +294,28 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                   OutlinedButton(
                     onPressed: _isLoading ? null : _signInWithGoogle,
                     style: OutlinedButton.styleFrom(
-                      backgroundColor: CruizrTheme.surface, 
+                      backgroundColor: CruizrTheme.surface,
                       side: BorderSide.none,
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                         // Placeholder G icon if no asset
-                         const Text('G', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)), 
-                         const SizedBox(width: 12),
-                         Text('Continue with Google', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+                        // Placeholder G icon if no asset
+                        const Text('G',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 20)),
+                        const SizedBox(width: 12),
+                        Text('Continue with Google',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 48),
-                  
+
                   // Footer
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -307,13 +326,16 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                       ),
                       TextButton(
                         onPressed: () {
-                           Navigator.of(context).push(
-                             MaterialPageRoute(builder: (context) => const SignUpScreen()),
-                           );
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (context) => const SignUpScreen()),
+                          );
                         },
                         child: const Text(
                           'Sign Up',
-                          style: TextStyle(color: CruizrTheme.primaryDark, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              color: CruizrTheme.primaryDark,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],

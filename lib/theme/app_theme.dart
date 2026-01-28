@@ -5,15 +5,17 @@ class CruizrTheme {
   // Cruizr Color Palette
   static const Color background = Color(0xFFFDF6F5); // Light Pink Background
   static const Color surface = Color(0xFFF5EBE9); // Peach/Beige for inputs
-  static const Color primaryDark = Color(0xFF4A3438); // Dark Brown (Text/Buttons)
+  static const Color primaryDark =
+      Color(0xFF4A3438); // Dark Brown (Text/Buttons)
   static const Color accentPink = Color(0xFFD97D84); // Accent Pink/Red
   static const Color textPrimary = Color(0xFF4A3438); // Dark Brown
   static const Color textSecondary = Color(0xFF8D7B7D); // Muted Brown/Grey
   static const Color border = Color(0xFFE0D4D4); // Light Border
 
   // Keep compatibility aliases if needed, or refactor usages
-  static const Color primaryMint = primaryDark; // Alias for backward compatibility
-  
+  static const Color primaryMint =
+      primaryDark; // Alias for backward compatibility
+
   static ThemeData get themeData {
     return ThemeData(
       useMaterial3: true,
@@ -30,7 +32,6 @@ class CruizrTheme {
           fontSize: 32,
           fontWeight: FontWeight.w700,
           color: textPrimary,
-          fontStyle: FontStyle.italic,
         ),
         headlineSmall: GoogleFonts.playfairDisplay(
           fontSize: 24,

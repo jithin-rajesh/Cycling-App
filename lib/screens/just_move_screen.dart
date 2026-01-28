@@ -26,18 +26,18 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
   final Set<Polyline> _polylines = {};
   final Set<Marker> _markers = {};
   BitmapDescriptor? _locationMarkerIcon;
-  
+
   // Tracking state
   bool _isTracking = false;
   bool _isPaused = false;
   bool _isMapExpanded = false; // For small screens
-  
+
   // Stats
   double _distance = 0.0;
   Duration _duration = Duration.zero;
   double _elevationGain = 0.0;
   double? _lastAltitude;
-  
+
   Timer? _timer;
   StreamSubscription<Position>? _positionSubscription;
 
@@ -97,34 +97,38 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
     const double borderWidth = 4;
     const double centerX = totalWidth / 2;
     const double centerY = circleSize / 2 + 2;
-    
+
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    
+
     final shadowPaint = Paint()
       ..color = Colors.black.withValues(alpha: 0.25)
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-    
+
     final whitePaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
-    
+
     final pinkPaint = Paint()
       ..color = CruizrTheme.accentPink
       ..style = PaintingStyle.fill;
-    
+
     // Draw shadow tip
     final shadowTipPath = Path();
-    shadowTipPath.moveTo(centerX - 8 + shadowOffset, centerY + circleSize / 2 - 6 + shadowOffset);
-    shadowTipPath.lineTo(centerX + 8 + shadowOffset, centerY + circleSize / 2 - 6 + shadowOffset);
-    shadowTipPath.lineTo(centerX + shadowOffset, centerY + tipHeight + circleSize / 2 - 10 + shadowOffset);
+    shadowTipPath.moveTo(centerX - 8 + shadowOffset,
+        centerY + circleSize / 2 - 6 + shadowOffset);
+    shadowTipPath.lineTo(centerX + 8 + shadowOffset,
+        centerY + circleSize / 2 - 6 + shadowOffset);
+    shadowTipPath.lineTo(centerX + shadowOffset,
+        centerY + tipHeight + circleSize / 2 - 10 + shadowOffset);
     shadowTipPath.close();
     canvas.drawPath(shadowTipPath, shadowPaint);
-    
+
     // Draw shadow circle
-    canvas.drawCircle(Offset(centerX + shadowOffset, centerY + shadowOffset), circleSize / 2, shadowPaint);
-    
+    canvas.drawCircle(Offset(centerX + shadowOffset, centerY + shadowOffset),
+        circleSize / 2, shadowPaint);
+
     // Draw white tip (triangle pointing down)
     final tipPath = Path();
     tipPath.moveTo(centerX - 8, centerY + circleSize / 2 - 6);
@@ -132,17 +136,19 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
     tipPath.lineTo(centerX, centerY + tipHeight + circleSize / 2 - 10);
     tipPath.close();
     canvas.drawPath(tipPath, whitePaint);
-    
+
     // Draw white outer circle (border)
     canvas.drawCircle(Offset(centerX, centerY), circleSize / 2, whitePaint);
-    
+
     // Draw pink inner circle
-    canvas.drawCircle(Offset(centerX, centerY), circleSize / 2 - borderWidth, pinkPaint);
-    
+    canvas.drawCircle(
+        Offset(centerX, centerY), circleSize / 2 - borderWidth, pinkPaint);
+
     final picture = recorder.endRecording();
-    final image = await picture.toImage(totalWidth.toInt(), totalHeight.toInt());
+    final image =
+        await picture.toImage(totalWidth.toInt(), totalHeight.toInt());
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    
+
     return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
   }
 
@@ -153,7 +159,8 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
         _markers.add(
           Marker(
             markerId: const MarkerId('current_location'),
-            position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            position:
+                LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
             icon: _locationMarkerIcon!,
             anchor: const Offset(0.5, 1.0),
           ),
@@ -208,11 +215,13 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
           return;
         }
       }
-      
+
       if (permission == LocationPermission.deniedForever) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location permission permanently denied. Allow in settings.')),
+          const SnackBar(
+              content: Text(
+                  'Location permission permanently denied. Allow in settings.')),
         );
         return;
       }
@@ -220,15 +229,15 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      
+
       if (!mounted) return;
 
       setState(() {
         _currentPosition = position;
       });
-      
+
       _updateLocationMarker();
-      
+
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
       );
@@ -245,7 +254,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
       _isTracking = true;
       _isPaused = false;
     });
-    
+
     // Start timer
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_isTracking && !_isPaused) {
@@ -254,7 +263,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
         });
       }
     });
-    
+
     // Start location tracking
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
@@ -268,13 +277,14 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
             // Calculate distance from last point
             final lastPoint = _routePoints.last;
             _distance += Geolocator.distanceBetween(
-              lastPoint.latitude,
-              lastPoint.longitude,
-              position.latitude,
-              position.longitude,
-            ) / 1000; // Convert to km
+                  lastPoint.latitude,
+                  lastPoint.longitude,
+                  position.latitude,
+                  position.longitude,
+                ) /
+                1000; // Convert to km
           }
-          
+
           // Calculate Elevation Gain
           if (_lastAltitude != null) {
             double altitudeDiff = position.altitude - _lastAltitude!;
@@ -284,15 +294,15 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
             }
           }
           _lastAltitude = position.altitude;
-          
+
           _routePoints.add(LatLng(position.latitude, position.longitude));
           // _speed = position.speed * 3.6; // Removed as unused
           _updatePolyline();
           _currentPosition = position;
         });
-        
+
         _updateLocationMarker();
-        
+
         // Keep camera centered on user
         _mapController?.animateCamera(
           CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
@@ -316,12 +326,12 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
   void _stopTracking() {
     _timer?.cancel();
     _positionSubscription?.cancel();
-    
+
     setState(() {
       _isTracking = false;
       _isPaused = false;
     });
-    
+
     // Show summary dialog
     _showSummaryDialog();
   }
@@ -344,11 +354,12 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
           children: [
             _buildSummaryRow('Distance', '${_distance.toStringAsFixed(2)} km'),
             _buildSummaryRow('Duration', _formatDuration(_duration)),
-            _buildSummaryRow('Elevation', '${_elevationGain.toStringAsFixed(0)} m'),
+            _buildSummaryRow(
+                'Elevation', '${_elevationGain.toStringAsFixed(0)} m'),
           ],
         ),
         actions: [
-            TextButton(
+          TextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
               Navigator.of(context).pop();
@@ -356,26 +367,27 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
             child: const Text('Discard'),
           ),
           TextButton(
-             onPressed: () async {
-               // 1. Save Activity
-               final savedActivity = await _saveActivityInternal();
-               if (savedActivity == null) return;
-               
-               // 2. Share Logic
-               if (!mounted) return;
-               Navigator.of(dialogContext).pop(); // Close summary dialog
-               
-               await _handleShareToClub(savedActivity.id, savedActivity.distance);
-               
-               if (!mounted) return;
-               Navigator.of(context).pop(); // Go back home
-             },
-             child: const Text('Save & Share'),
+            onPressed: () async {
+              // 1. Save Activity
+              final savedActivity = await _saveActivityInternal();
+              if (savedActivity == null) return;
+
+              // 2. Share Logic
+              if (!mounted) return;
+              Navigator.of(dialogContext).pop(); // Close summary dialog
+
+              await _handleShareToClub(
+                  savedActivity.id, savedActivity.distance);
+
+              if (!mounted) return;
+              Navigator.of(context).pop(); // Go back home
+            },
+            child: const Text('Save & Share'),
           ),
           FilledButton(
             onPressed: () async {
               await _saveActivityInternal();
-              
+
               if (!mounted) return;
               Navigator.of(dialogContext).pop(); // Close dialog
               Navigator.of(context).pop(); // Go back home
@@ -406,66 +418,71 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
       elevationGain: _elevationGain,
       polyline: _routePoints,
     );
-    
+
     await ActivityService().saveActivity(activity);
-    return activity; // Note: ID in returned object is empty, but we might only need stats. 
+    return activity; // Note: ID in returned object is empty, but we might only need stats.
     // Actually ActivityService doesn't return the ID. We can modify ActivityService or just pass null ID to post if we don't strictly link it yet.
-    // Ideally we want the ID. 
+    // Ideally we want the ID.
     // But for now let's just use the stats in the description or just the fact it's done.
   }
 
   Future<void> _handleShareToClub(String activityId, double distance) async {
-      // Fetch user's clubs (conceptually, we need an API to get "my clubs". 
-      // For now, ClubService.getClubs() returns all, and we check membership locally or assume getting all is fine for MVP)
-      
-      // Better: check which clubs I am a member of.
-      final clubService = ClubService();
-      final allClubs = await clubService.getClubs();
-      List<ClubModel> myClubs = [];
-      
-      for (var club in allClubs) {
-         if (await clubService.isMember(club.id)) {
-           myClubs.add(club);
-         }
+    // Fetch user's clubs (conceptually, we need an API to get "my clubs".
+    // For now, ClubService.getClubs() returns all, and we check membership locally or assume getting all is fine for MVP)
+
+    // Better: check which clubs I am a member of.
+    final clubService = ClubService();
+    final allClubs = await clubService.getClubs();
+    List<ClubModel> myClubs = [];
+
+    for (var club in allClubs) {
+      if (await clubService.isMember(club.id)) {
+        myClubs.add(club);
       }
-      
-      if (myClubs.isEmpty) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Join a club first to share!')));
-        return;
-      }
-      
-      ClubModel? selectedClub;
-      if (myClubs.length == 1) {
-        selectedClub = myClubs.first;
-      } else {
-        if (!mounted) return;
-        selectedClub = await showDialog<ClubModel>(
-          context: context,
-          builder: (context) => SimpleDialog(
-            title: const Text('Select Club'),
-            children: myClubs.map((c) => SimpleDialogOption(
-              child: Text(c.name),
-              onPressed: () => Navigator.pop(context, c),
-            )).toList(),
-          ),
-        );
-      }
-      
-      if (selectedClub != null && mounted) {
-           await showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            builder: (context) => CreatePostSheet(
-              clubId: selectedClub!.id,
-              defaultDescription: 'Just finished a ${distance.toStringAsFixed(1)}km ride with Cruizr! 🚴💨',
-              activityId: activityId, // might be empty string depending on save flow, but that's ok
-            ),
-          );
-      }
+    }
+
+    if (myClubs.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Join a club first to share!')));
+      return;
+    }
+
+    ClubModel? selectedClub;
+    if (myClubs.length == 1) {
+      selectedClub = myClubs.first;
+    } else {
+      if (!mounted) return;
+      selectedClub = await showDialog<ClubModel>(
+        context: context,
+        builder: (context) => SimpleDialog(
+          title: const Text('Select Club'),
+          children: myClubs
+              .map((c) => SimpleDialogOption(
+                    child: Text(c.name),
+                    onPressed: () => Navigator.pop(context, c),
+                  ))
+              .toList(),
+        ),
+      );
+    }
+
+    if (selectedClub != null && mounted) {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) => CreatePostSheet(
+          clubId: selectedClub!.id,
+          defaultDescription:
+              'Just finished a ${distance.toStringAsFixed(1)}km ride with Cruizr! 🚴💨',
+          activityId:
+              activityId, // might be empty string depending on save flow, but that's ok
+        ),
+      );
+    }
   }
 
   Widget _buildSummaryRow(String label, String value) {
@@ -527,7 +544,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
           children: [
             // Header
             _buildHeader(),
-            
+
             // Map
             Expanded(
               child: Stack(
@@ -536,7 +553,8 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
                     onMapCreated: _onMapCreated,
                     initialCameraPosition: CameraPosition(
                       target: _currentPosition != null
-                          ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+                          ? LatLng(_currentPosition!.latitude,
+                              _currentPosition!.longitude)
                           : _defaultCenter,
                       zoom: 16,
                     ),
@@ -558,22 +576,34 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           _buildMapButton(Icons.add, () {
-                            _mapController?.animateCamera(CameraUpdate.zoomIn());
+                            _mapController
+                                ?.animateCamera(CameraUpdate.zoomIn());
                           }),
                           const SizedBox(height: 8),
                           _buildMapButton(Icons.remove, () {
-                            _mapController?.animateCamera(CameraUpdate.zoomOut());
+                            _mapController
+                                ?.animateCamera(CameraUpdate.zoomOut());
                           }),
                           const SizedBox(height: 24),
+                          Text(
+                            "Share location with selected\ncontacts",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               _buildMapButton(
-                                _isMapExpanded ? Icons.fullscreen_exit : Icons.fullscreen, 
-                                () => setState(() => _isMapExpanded = !_isMapExpanded)
-                              ),
+                                  _isMapExpanded
+                                      ? Icons.fullscreen_exit
+                                      : Icons.fullscreen,
+                                  () => setState(
+                                      () => _isMapExpanded = !_isMapExpanded)),
                               const SizedBox(width: 12),
-                              _buildMapButton(Icons.my_location, _getCurrentLocation),
+                              _buildMapButton(
+                                  Icons.my_location, _getCurrentLocation),
                             ],
                           ),
                         ],
@@ -587,42 +617,52 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
                       right: 16,
                       child: PointerInterceptor(
                         child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildExpandedStat('Distance',
+                                  '${_distance.toStringAsFixed(2)} km'),
+                              Container(
+                                  width: 1,
+                                  height: 24,
+                                  color: Colors.grey.withValues(alpha: 0.3)),
+                              _buildExpandedStat(
+                                  'Duration', _formatDuration(_duration)),
+                              Container(
+                                  width: 1,
+                                  height: 24,
+                                  color: Colors.grey.withValues(alpha: 0.3)),
+                              _buildExpandedStat('Elev',
+                                  '${_elevationGain.toStringAsFixed(0)} m'),
+                            ],
+                          ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildExpandedStat('Distance', '${_distance.toStringAsFixed(2)} km'),
-                            Container(width: 1, height: 24, color: Colors.grey.withValues(alpha: 0.3)),
-                            _buildExpandedStat('Duration', _formatDuration(_duration)),
-                            Container(width: 1, height: 24, color: Colors.grey.withValues(alpha: 0.3)),
-                            _buildExpandedStat('Elev', '${_elevationGain.toStringAsFixed(0)} m'),
-                          ],
-                        ),
-                      ),
                       ),
                     ),
                 ],
               ),
             ),
-            
+
             if (!_isMapExpanded) ...[
               // Stats Panel
               _buildStatsPanel(),
-              
+
               // Controls
               _buildControls(),
-              
+
               const SizedBox(height: 24),
             ],
           ],
@@ -674,7 +714,6 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Color(0xFF2D2D2D),
-              fontStyle: FontStyle.italic,
             ),
           ),
           const SizedBox(width: 48), // Balance the back button
@@ -840,10 +879,12 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
       ],
     );
   }
+
   Widget _buildExpandedStat(String label, String value) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
       ],
     );

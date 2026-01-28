@@ -27,14 +27,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     try {
       // 1. Create User
-      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       // 2. Update Display Name (Initial)
       if (userCredential.user != null && _nameController.text.isNotEmpty) {
-        await userCredential.user!.updateDisplayName(_nameController.text.trim());
+        await userCredential.user!
+            .updateDisplayName(_nameController.text.trim());
       }
 
       if (mounted) {
@@ -81,9 +83,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         title: Text(
           'Join Cruizr',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontStyle: FontStyle.italic,
-            fontSize: 20,
-          ),
+                fontSize: 20,
+              ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: CruizrTheme.textPrimary),
@@ -99,14 +100,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                   const SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   // Header
                   Text(
                     'Create Your\nActive Account',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      height: 1.2,
-                      fontSize: 40,
-                    ),
+                          height: 1.2,
+                          fontSize: 40,
+                        ),
                     textAlign: TextAlign.left,
                   ),
                   const SizedBox(height: 48),
@@ -117,20 +118,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(left: 4, bottom: 8),
-                        child: Text('Full Name', style: Theme.of(context).textTheme.bodyMedium),
+                        child: Text('Full Name',
+                            style: Theme.of(context).textTheme.bodyMedium),
                       ),
                       TextField(
-                         controller: _nameController,
-                         style: Theme.of(context).textTheme.bodyLarge,
-                         cursorColor: CruizrTheme.primaryDark,
-                         decoration: const InputDecoration(
-                            hintText: 'John Doe',
-                         ),
+                        controller: _nameController,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        cursorColor: CruizrTheme.primaryDark,
+                        decoration: const InputDecoration(
+                          hintText: 'John Doe',
+                        ),
                       ),
                       const SizedBox(height: 24),
                       Padding(
                         padding: const EdgeInsets.only(left: 4, bottom: 8),
-                        child: Text('Email Address', style: Theme.of(context).textTheme.bodyMedium),
+                        child: Text('Email Address',
+                            style: Theme.of(context).textTheme.bodyMedium),
                       ),
                       TextField(
                         controller: _emailController,
@@ -144,7 +147,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: 24),
                       Padding(
                         padding: const EdgeInsets.only(left: 4, bottom: 8),
-                        child: Text('Create Password', style: Theme.of(context).textTheme.bodyMedium),
+                        child: Text('Create Password',
+                            style: Theme.of(context).textTheme.bodyMedium),
                       ),
                       TextField(
                         controller: _passwordController,
@@ -159,21 +163,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       // Password Strength Indicator (Simulated)
                       Row(
                         children: [
-                          Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.accentPink, borderRadius: BorderRadius.circular(2)))),
+                          Expanded(
+                              child: Container(
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                      color: CruizrTheme.accentPink,
+                                      borderRadius: BorderRadius.circular(2)))),
                           const SizedBox(width: 8),
-                          Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.accentPink.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2)))),
+                          Expanded(
+                              child: Container(
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                      color: CruizrTheme.accentPink
+                                          .withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(2)))),
                           const SizedBox(width: 8),
-                          Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.surface, borderRadius: BorderRadius.circular(2)))),
+                          Expanded(
+                              child: Container(
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                      color: CruizrTheme.surface,
+                                      borderRadius: BorderRadius.circular(2)))),
                           const SizedBox(width: 8),
-                          Expanded(child: Container(height: 4, decoration: BoxDecoration(color: CruizrTheme.surface, borderRadius: BorderRadius.circular(2)))),
+                          Expanded(
+                              child: Container(
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                      color: CruizrTheme.surface,
+                                      borderRadius: BorderRadius.circular(2)))),
                         ],
                       ),
 
-                       const SizedBox(height: 24),
-                       // Confirm Password (Added field for UI completeness, logic can simply check it matches or ignore for now)
-                       Padding(
+                      const SizedBox(height: 24),
+                      // Confirm Password (Added field for UI completeness, logic can simply check it matches or ignore for now)
+                      Padding(
                         padding: const EdgeInsets.only(left: 4, bottom: 8),
-                        child: Text('Confirm Password', style: Theme.of(context).textTheme.bodyMedium),
+                        child: Text('Confirm Password',
+                            style: Theme.of(context).textTheme.bodyMedium),
                       ),
                       TextField(
                         obscureText: true,
@@ -186,7 +212,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Terms Checkbox
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,19 +224,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           value: true, // simplified for UI demo
                           onChanged: (val) {},
                           activeColor: CruizrTheme.primaryDark,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4)),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: RichText(
                           text: TextSpan(
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(fontSize: 12),
                             children: const [
                               TextSpan(text: 'I agree to Cruizr\'s '),
-                              TextSpan(text: 'Terms of Service', style: TextStyle(fontWeight: FontWeight.bold, color: CruizrTheme.primaryDark)),
+                              TextSpan(
+                                  text: 'Terms of Service',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: CruizrTheme.primaryDark)),
                               TextSpan(text: ' and acknowledge the '),
-                              TextSpan(text: 'Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, color: CruizrTheme.primaryDark)),
+                              TextSpan(
+                                  text: 'Privacy Policy',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: CruizrTheme.primaryDark)),
                             ],
                           ),
                         ),
@@ -236,28 +274,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
 
                   const SizedBox(height: 32),
-                  
+
                   // Footer
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         "Already active? ",
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontStyle: FontStyle.italic),
                       ),
                       GestureDetector(
                         onTap: () {
-                           Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(builder: (context) => const SignInScreen()),
-                           );
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                                builder: (context) => const SignInScreen()),
+                          );
                         },
                         child: Text(
                           'Sign In',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: CruizrTheme.primaryDark, 
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Playfair Display' // Use Serif for emphasis
-                          ),
+                              color: CruizrTheme.primaryDark,
+                              fontWeight: FontWeight.bold,
+                              fontFamily:
+                                  'Playfair Display' // Use Serif for emphasis
+                              ),
                         ),
                       ),
                     ],
