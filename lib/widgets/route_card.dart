@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../theme/app_theme.dart';
 import '../utils/polyline_encoder.dart';
+import '../config/secrets.dart';
 
 class RouteCard extends StatelessWidget {
   final Map<String, dynamic> route;
@@ -19,17 +20,13 @@ class RouteCard extends StatelessWidget {
   });
 
   String _generateStaticMapUrl(List<LatLng> points) {
-    const String apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
-    if (apiKey.isEmpty || points.isEmpty) return '';
+    // API key is passed via secrets.dart
+    const String apiKey = googleMapsApiKey;
+    if (points.isEmpty) return '';
 
     final encodedPolyline = PolylineEncoder.encode(points);
 
     // Style matches the cream/pink theme
-    // const style = '&style=feature:all|element:geometry|color:0xf5ebe9'
-    //     '&style=feature:water|element:geometry|color:0xd7ccc8'
-    //     '&style=feature:road|element:geometry|color:0xfdf6f5'
-    //     '&style=feature:road|element:geometry.stroke|color:0xe0d4d4';
-
     const style = '&style=feature:poi|visibility:off';
 
     return 'https://maps.googleapis.com/maps/api/staticmap?'
@@ -195,6 +192,8 @@ class RouteCard extends StatelessWidget {
                 children: [
                   Text(
                     name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontFamily: 'Playfair Display',
                       fontSize: 20,
@@ -203,15 +202,21 @@ class RouteCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _buildStat(Icons.straighten,
-                          '${distanceKm.toStringAsFixed(1)} km'),
-                      const SizedBox(width: 16),
-                      _buildStat(Icons.terrain, '$elevation m'),
-                      const SizedBox(width: 16),
-                      _buildStat(Icons.timer_outlined, '$durationMinutes min'),
-                    ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize
+                          .min, // Ensure Row takes minimum necessary width
+                      children: [
+                        _buildStat(Icons.straighten,
+                            '${distanceKm.toStringAsFixed(1)} km'),
+                        const SizedBox(width: 16),
+                        _buildStat(Icons.terrain, '$elevation m'),
+                        const SizedBox(width: 16),
+                        _buildStat(
+                            Icons.timer_outlined, '$durationMinutes min'),
+                      ],
+                    ),
                   ),
                 ],
               ),

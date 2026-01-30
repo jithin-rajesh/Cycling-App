@@ -70,3 +70,5 @@ macos/Flutter/ephemeral/
 lib/firebase_options.dart
 
 .vscode/launch.json
+
+lib/config

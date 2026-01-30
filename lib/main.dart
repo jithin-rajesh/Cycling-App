@@ -11,12 +11,19 @@ import 'screens/main_navigation_screen.dart';
 import 'services/strava_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+import 'utils/map_loader.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Load Google Maps SDK (Web only)
+  await loadGoogleMaps();
+
   runApp(const CruizrApp());
 }
 
@@ -56,7 +63,7 @@ class _StravaCallbackWrapperState extends State<StravaCallbackWrapper> {
     if (kIsWeb) {
       final uri = Uri.base;
       final code = uri.queryParameters['code'];
-      
+
       if (code != null) {
         setState(() {
           _isProcessing = true;
@@ -66,18 +73,19 @@ class _StravaCallbackWrapperState extends State<StravaCallbackWrapper> {
         final success = await StravaService().handleAuthCallback(code);
 
         if (mounted) {
-           setState(() {
-             _statusMessage = success ? "Connected! Redirecting..." : "Connection failed.";
-           });
-           
-           // Small delay to read message
-           await Future.delayed(const Duration(seconds: 2));
-           
-           setState(() {
-             _isProcessing = false;
-           });
-           
-           // TODO: Ideally clean up the URL here, but requires dart:html or external router
+          setState(() {
+            _statusMessage =
+                success ? "Connected! Redirecting..." : "Connection failed.";
+          });
+
+          // Small delay to read message
+          await Future.delayed(const Duration(seconds: 2));
+
+          setState(() {
+            _isProcessing = false;
+          });
+
+          // TODO: Ideally clean up the URL here, but requires dart:html or external router
         }
       }
     }
@@ -109,7 +117,6 @@ class _StravaCallbackWrapperState extends State<StravaCallbackWrapper> {
     }
     return widget.child;
   }
-
 }
 
 class AuthGate extends StatelessWidget {
@@ -153,9 +160,10 @@ class AuthGate extends StatelessWidget {
             }
 
             // Check if profile is complete (has new onboarding fields)
-            final profileData = profileSnapshot.data!.data() as Map<String, dynamic>?;
-            if (profileData == null || 
-                !profileData.containsKey('activities') || 
+            final profileData =
+                profileSnapshot.data!.data() as Map<String, dynamic>?;
+            if (profileData == null ||
+                !profileData.containsKey('activities') ||
                 !profileData.containsKey('activityLevel')) {
               return const ProfileSetupScreen();
             }

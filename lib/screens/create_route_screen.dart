@@ -11,8 +11,10 @@ import '../services/directions_service.dart';
 import '../services/elevation_service.dart';
 import 'follow_route_screen.dart';
 
-// API key is passed via --dart-define=GOOGLE_MAPS_API_KEY=...
-const String _mapsApiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+import '../config/secrets.dart';
+
+// API key is passed via secrets.dart
+const String _mapsApiKey = googleMapsApiKey;
 
 class CreateRouteScreen extends StatefulWidget {
   const CreateRouteScreen({super.key});
