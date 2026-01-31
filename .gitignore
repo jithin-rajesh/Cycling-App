@@ -52,3 +52,4 @@ app.*.map.json
 coverage/
 .vercel
 lib/firebase_options.dart
+lib/config/secrets.dart

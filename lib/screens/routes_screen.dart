@@ -8,6 +8,7 @@ import '../services/strava_service.dart';
 import '../theme/app_theme.dart';
 import 'follow_route_screen.dart';
 import '../widgets/route_card.dart';
+import 'places_tab.dart';
 
 class RoutesScreen extends StatefulWidget {
   const RoutesScreen({super.key});
@@ -17,7 +18,7 @@ class RoutesScreen extends StatefulWidget {
 }
 
 class _RoutesScreenState extends State<RoutesScreen> {
-  final List<String> _filters = ["My Routes", "All Routes", "Strava Segments"];
+  final List<String> _filters = ["My Routes", "All Routes", "Strava Segments", "Places"];
   int _selectedFilterIndex = 0;
   
   // Map State
@@ -90,7 +91,9 @@ class _RoutesScreenState extends State<RoutesScreen> {
             Expanded(
               child: _selectedFilterIndex == 2 
                   ? _buildSegmentsMap() 
-                  : _buildRoutesList(),
+                  : _selectedFilterIndex == 3
+                      ? const PlacesTab()
+                      : _buildRoutesList(),
             ),
           ],
         ),
