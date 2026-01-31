@@ -224,29 +224,66 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
                           const SizedBox(height: 24),
 
-                          // Stats Row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildStatItem(
-                                  'Followers', _followCounts['followers'] ?? 0),
-                              Container(
-                                  width: 1,
-                                  height: 30,
-                                  color: Colors.grey[300],
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 24)),
-                              _buildStatItem(
-                                  'Following', _followCounts['following'] ?? 0),
-                              Container(
-                                  width: 1,
-                                  height: 30,
-                                  color: Colors.grey[300],
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 24)),
-                              _buildStatItem('Routes', _userRoutes.length),
-                            ],
-                          ),
+                          // Stats Row (Hidden if private)
+                          if (_userProfile?['profileVisibility'] == 'private' &&
+                              !_isMe) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 20, horizontal: 16),
+                              margin: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: CruizrTheme.surface,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.lock_outline,
+                                      size: 32,
+                                      color: CruizrTheme.textSecondary),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    "This account is private",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: CruizrTheme.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    "Follow this user to see their activity",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: CruizrTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            // Stats Row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildStatItem('Followers',
+                                    _followCounts['followers'] ?? 0),
+                                Container(
+                                    width: 1,
+                                    height: 30,
+                                    color: Colors.grey[300],
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 24)),
+                                _buildStatItem('Following',
+                                    _followCounts['following'] ?? 0),
+                                Container(
+                                    width: 1,
+                                    height: 30,
+                                    color: Colors.grey[300],
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 24)),
+                                _buildStatItem('Routes', _userRoutes.length),
+                              ],
+                            ),
+                          ],
 
                           const SizedBox(height: 24),
 
@@ -282,28 +319,32 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               ),
                             ),
 
-                          const SizedBox(height: 32),
-
                           // Section Title
-                          const Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'Created Routes',
-                              style: TextStyle(
-                                fontFamily: 'Playfair Display',
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                          if (_userProfile?['profileVisibility'] != 'private' ||
+                              _isMe) ...[
+                            const SizedBox(height: 32),
+                            const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Created Routes',
+                                style: TextStyle(
+                                  fontFamily: 'Playfair Display',
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
+                            const SizedBox(height: 16),
+                          ],
                         ],
                       ),
                     ),
                   ),
 
                   // Routes List
-                  if (_userRoutes.isEmpty)
+                  if ((_userProfile?['profileVisibility'] != 'private' ||
+                          _isMe) &&
+                      _userRoutes.isEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.all(32.0),
@@ -315,7 +356,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                       ),
                     )
-                  else
+                  else if (_userProfile?['profileVisibility'] != 'private' ||
+                      _isMe)
                     SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {

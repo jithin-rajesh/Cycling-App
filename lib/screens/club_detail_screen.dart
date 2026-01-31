@@ -1,8 +1,4 @@
-
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import '../widgets/create_post_sheet.dart';
 import '../models/club_model.dart';
 import '../models/club_post_model.dart';
@@ -101,16 +97,22 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
                       child: ElevatedButton(
                         onPressed: _isBusy ? null : _handleJoinLeave,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _isMember ? Colors.white.withOpacity(0.2) : CruizrTheme.accentPink,
+                          backgroundColor: _isMember
+                              ? Colors.white.withOpacity(0.2)
+                              : CruizrTheme.accentPink,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
                           elevation: 0,
                         ),
-                        child: _isBusy 
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                          : Text(_isMember ? 'Joined' : 'Join'),
+                        child: _isBusy
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : Text(_isMember ? 'Joined' : 'Join'),
                       ),
                     ),
                   )
@@ -135,8 +137,10 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
     return StreamBuilder<List<ClubPostModel>>(
       stream: _clubService.getClubPosts(widget.club.id),
       builder: (context, snapshot) {
-        if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError)
+          return Center(child: Text('Error: ${snapshot.error}'));
+        if (snapshot.connectionState == ConnectionState.waiting)
+          return const Center(child: CircularProgressIndicator());
 
         final posts = snapshot.data ?? [];
 
@@ -148,7 +152,9 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
                 Icon(Icons.forum_outlined, size: 64, color: Colors.grey[300]),
                 const SizedBox(height: 16),
                 Text(
-                  _isMember ? 'Be the first to post!' : 'Join to see and share posts.',
+                  _isMember
+                      ? 'Be the first to post!'
+                      : 'Join to see and share posts.',
                   style: const TextStyle(color: Colors.grey),
                 ),
               ],
@@ -175,7 +181,10 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       padding: const EdgeInsets.all(16),
@@ -187,8 +196,11 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundImage: post.userAvatar.isNotEmpty ? NetworkImage(post.userAvatar) : null,
-                child: post.userAvatar.isEmpty ? const Icon(Icons.person) : null,
+                backgroundImage: post.userAvatar.isNotEmpty
+                    ? NetworkImage(post.userAvatar)
+                    : null,
+                child:
+                    post.userAvatar.isEmpty ? const Icon(Icons.person) : null,
               ),
               const SizedBox(width: 12),
               Column(
@@ -196,7 +208,8 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
                 children: [
                   Text(
                     post.userName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   Text(
                     _formatDate(post.timestamp.toDate()),
@@ -207,13 +220,13 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          
+
           // Content
           if (post.description.isNotEmpty) ...[
             Text(post.description),
             const SizedBox(height: 12),
           ],
-          
+
           // Image
           if (post.imageUrl != null && post.imageUrl!.isNotEmpty)
             ClipRRect(
@@ -238,5 +251,3 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
     return '${date.day}/${date.month}';
   }
 }
-
-

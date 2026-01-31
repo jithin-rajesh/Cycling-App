@@ -9,6 +9,9 @@ import 'start_activity_screen.dart';
 import 'activity_history_screen.dart';
 import 'activity_details_screen.dart';
 
+import '../services/user_service.dart';
+import '../widgets/profile_drawer.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -16,7 +19,10 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  late AnimationController _menuAnimController;
   final String _greeting = 'Welcome back!';
   String _activitySuggestion = 'Ready to move?';
 
@@ -30,7 +36,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _menuAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _menuAnimController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -82,7 +98,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final dateString = DateFormat('EEEE, MMMM d').format(now);
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: CruizrTheme.background,
+      drawer: const ProfileDrawer(),
+      onDrawerChanged: (isOpened) {
+        if (isOpened) {
+          _menuAnimController.forward();
+        } else {
+          _menuAnimController.reverse();
+        }
+      },
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -122,7 +147,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  IconButton(icon: const Icon(Icons.menu), onPressed: () {}),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () {
+                      final isOpen =
+                          _scaffoldKey.currentState?.isDrawerOpen ?? false;
+                      if (isOpen) {
+                        _scaffoldKey.currentState?.closeDrawer();
+                      } else {
+                        _scaffoldKey.currentState?.openDrawer();
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: AnimatedIcon(
+                        icon: AnimatedIcons.menu_close,
+                        progress: _menuAnimController,
+                        color: CruizrTheme.textPrimary,
+                        size: 28,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -302,6 +347,61 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 32),
 
+              // Active Goals Section (Streamed)
+              StreamBuilder<List<Map<String, dynamic>>>(
+                stream: UserService().getActiveGoalsStream(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final goals = snapshot.data!;
+
+                  return Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Active Goals",
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  fontSize: 18,
+                                  fontStyle: FontStyle.italic,
+                                  color: CruizrTheme.textPrimary,
+                                ),
+                          ),
+                          Text(
+                            "${goals.length} running",
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: CruizrTheme.textSecondary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 140, // Height for horizontal scrolling cards
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: goals.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            final goal = goals[index];
+                            return _buildActiveGoalCard(goal);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                    ],
+                  );
+                },
+              ),
+
               // Recent Activities
               if (_recentActivities.isNotEmpty) ...[
                 Row(
@@ -448,6 +548,82 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontSize: 12,
                   color: Colors.grey,
                   fontStyle: FontStyle.italic)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveGoalCard(Map<String, dynamic> goal) {
+    if (!goal.containsKey('endDate')) return const SizedBox.shrink();
+    final endDate = (goal['endDate'] as Timestamp).toDate();
+    final daysLeft = endDate.difference(DateTime.now()).inDays;
+    final timeLeft = daysLeft > 0 ? '$daysLeft days left' : 'Ending soon';
+    final progress = (goal['progress'] as num?)?.toDouble() ?? 0.0;
+
+    return Container(
+      width: 240,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: CruizrTheme.accentPink.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.flag_outlined,
+                    color: CruizrTheme.accentPink, size: 20),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${goal['target']} ${goal['metric']}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Goal: ${goal['durationLabel']}',
+            style: TextStyle(color: CruizrTheme.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            timeLeft,
+            style: const TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.w600,
+                fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value:
+                  progress, // Placeholder 0.0 for now until tracking implemented
+              backgroundColor: CruizrTheme.background,
+              valueColor: AlwaysStoppedAnimation<Color>(CruizrTheme.accentPink),
+              minHeight: 6,
+            ),
+          ),
         ],
       ),
     );

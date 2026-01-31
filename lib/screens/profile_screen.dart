@@ -47,6 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Connected Apps
   bool _isStravaConnected = false;
+  bool _autoUploadActivity = true;
 
   final List<String> _pronounOptions = [
     'he/him',
@@ -139,6 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               data['notifications'] as Map<String, dynamic>? ?? {};
           _activityReminders = notifications['activityReminders'] ?? true;
           _communityUpdates = notifications['communityUpdates'] ?? true;
+          _autoUploadActivity = data['autoUploadActivity'] ?? true;
           _achievementCelebrations =
               notifications['achievementCelebrations'] ?? false;
 
@@ -247,7 +249,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: CruizrTheme.accentPink.withOpacity(0.1),
+                    color: CruizrTheme.accentPink.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.upload_file, color: CruizrTheme.accentPink),
@@ -439,12 +441,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildHeader() {
+    final canPop = Navigator.canPop(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const SizedBox(width: 48), // Spacer for balance
+          if (canPop)
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            )
+          else
+            const SizedBox(width: 48), // Spacer for balance
           Text(
             'Profile',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -688,10 +697,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: tierColor.withOpacity(0.3), width: 2),
+        border: Border.all(color: tierColor.withValues(alpha: 0.3), width: 2),
         boxShadow: [
           BoxShadow(
-            color: tierColor.withOpacity(0.1),
+            color: tierColor.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -860,95 +869,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Measurement System Toggle with Sliding Indicator
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final segmentWidth = (constraints.maxWidth - 8) / 2;
-              final selectedIndex = _measurementSystem == 'metric' ? 0 : 1;
-              return Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                padding: const EdgeInsets.all(4),
-                child: Stack(
-                  children: [
-                    // Sliding Indicator
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOutCubic,
-                      left: selectedIndex * segmentWidth,
-                      top: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: segmentWidth,
-                        decoration: BoxDecoration(
-                          color: CruizrTheme.accentPink,
-                          borderRadius: BorderRadius.circular(26),
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  CruizrTheme.accentPink.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Labels
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () =>
-                                setState(() => _measurementSystem = 'metric'),
-                            behavior: HitTestBehavior.opaque,
-                            child: Center(
-                              child: AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeOutCubic,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: _measurementSystem == 'metric'
-                                      ? Colors.white
-                                      : CruizrTheme.textSecondary,
-                                ),
-                                child: const Text('Metric'),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () =>
-                                setState(() => _measurementSystem = 'imperial'),
-                            behavior: HitTestBehavior.opaque,
-                            child: Center(
-                              child: AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeOutCubic,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: _measurementSystem == 'imperial'
-                                      ? Colors.white
-                                      : CruizrTheme.textSecondary,
-                                ),
-                                child: const Text('Imperial'),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+          _buildMeasurementToggle(),
         ],
       ),
     );
@@ -972,7 +893,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             options: ['Public', 'Community', 'Private'],
             values: ['public', 'community', 'private'],
             selectedValue: _profileVisibility,
-            onChanged: (value) => setState(() => _profileVisibility = value),
+            onChanged: (value) {
+              setState(() => _profileVisibility = value);
+              _updateSetting('profileVisibility', value);
+            },
           ),
           const SizedBox(height: 20),
 
@@ -984,7 +908,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             options: ['Everyone', 'Followers', 'Only Me'],
             values: ['everyone', 'followers', 'only_me'],
             selectedValue: _activitySharing,
-            onChanged: (value) => setState(() => _activitySharing = value),
+            onChanged: (value) {
+              setState(() => _activitySharing = value);
+              _updateSetting('activitySharing', value);
+            },
           ),
           const SizedBox(height: 20),
 
@@ -1007,8 +934,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               CruizrSwitch(
                 value: _liveActivitySharing,
-                onChanged: (value) =>
-                    setState(() => _liveActivitySharing = value),
+                onChanged: (value) {
+                  setState(() => _liveActivitySharing = value);
+                  _updateSetting('liveActivitySharing', value);
+                },
               ),
             ],
           ),
@@ -1101,16 +1030,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
-          _buildCheckboxTile('Activity reminders', _activityReminders,
-              (v) => setState(() => _activityReminders = v ?? false)),
+          _buildCheckboxTile('Activity reminders', _activityReminders, (v) {
+            final val = v ?? false;
+            setState(() => _activityReminders = val);
+            _updateSetting('activityReminders', val);
+          }),
           const Divider(height: 24),
-          _buildCheckboxTile('Community updates', _communityUpdates,
-              (v) => setState(() => _communityUpdates = v ?? false)),
+          _buildCheckboxTile('Community updates', _communityUpdates, (v) {
+            final val = v ?? false;
+            setState(() => _communityUpdates = val);
+            _updateSetting('communityUpdates', val);
+          }),
           const Divider(height: 24),
           _buildCheckboxTile(
-              'Achievement celebrations',
-              _achievementCelebrations,
-              (v) => setState(() => _achievementCelebrations = v ?? false)),
+              'Achievement celebrations', _achievementCelebrations, (v) {
+            final val = v ?? false;
+            setState(() => _achievementCelebrations = val);
+            _updateSetting('achievementCelebrations', val);
+          }),
         ],
       ),
     );
@@ -1234,7 +1171,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Auto-upload activities'),
-                CruizrSwitch(value: true, onChanged: (val) {}),
+                CruizrSwitch(
+                    value: _autoUploadActivity,
+                    onChanged: (val) {
+                      setState(() => _autoUploadActivity = val);
+                      _updateSetting('autoUploadActivity', val);
+                    }),
               ],
             ),
           ]
@@ -1311,6 +1253,141 @@ class _ProfileScreenState extends State<ProfileScreen> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         ),
         child: const Text('Sign Out'),
+      ),
+    );
+  }
+
+  Future<void> _updateSetting(String key, dynamic value) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({key: value});
+    } catch (e) {
+      debugPrint('Error updating setting $key: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save setting: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildMeasurementToggle() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CruizrTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.speed,
+                  size: 20, color: CruizrTheme.textSecondary),
+              const SizedBox(width: 8),
+              Text('Units', style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final segmentWidth = (constraints.maxWidth - 8) / 2;
+              final selectedIndex = _measurementSystem == 'metric' ? 0 : 1;
+              return Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Stack(
+                  children: [
+                    // Sliding Indicator
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      left: selectedIndex * segmentWidth,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: segmentWidth,
+                        decoration: BoxDecoration(
+                          color: CruizrTheme.accentPink,
+                          borderRadius: BorderRadius.circular(26),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  CruizrTheme.accentPink.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Labels
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() => _measurementSystem = 'metric');
+                              _updateSetting('measurementSystem', 'metric');
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Center(
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOutCubic,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: _measurementSystem == 'metric'
+                                      ? Colors.white
+                                      : CruizrTheme.textSecondary,
+                                ),
+                                child: const Text('Metric'),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() => _measurementSystem = 'imperial');
+                              _updateSetting('measurementSystem', 'imperial');
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Center(
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOutCubic,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: _measurementSystem == 'imperial'
+                                      ? Colors.white
+                                      : CruizrTheme.textSecondary,
+                                ),
+                                child: const Text('Imperial'),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
