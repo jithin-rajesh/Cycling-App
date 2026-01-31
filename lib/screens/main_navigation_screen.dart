@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
-import 'profile_screen.dart';
+import 'challenges_screen.dart';
 
 import 'routes_screen.dart';
 import 'start_activity_screen.dart';
@@ -11,8 +11,6 @@ import '../services/strava_service.dart'; // Added
 
 import 'package:flutter/foundation.dart';
 import 'package:uni_links/uni_links.dart';
-
-
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -63,7 +61,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
       if (error != null) {
         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Strava connection failed: $error')),
           );
         }
@@ -75,10 +73,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         if (mounted) {
           if (success) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Successfully connected to Strava!')),
+              const SnackBar(
+                  content: Text('Successfully connected to Strava!')),
             );
           } else {
-             ScaffoldMessenger.of(context).showSnackBar(
+            ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Failed to exchange Strava token.')),
             );
           }
@@ -90,15 +89,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const RoutesScreen(),
-    const Scaffold(body: Center(child: Text('Start'))), // Floating button placeholder
+    const Scaffold(
+        body: Center(child: Text('Start'))), // Floating button placeholder
     const CommunityScreen(),
-    const ProfileScreen(),
+    const ChallengesScreen(),
   ];
 
   void _onItemTapped(int index) {
     if (index == 2) {
-        // Handle Start Button Tap
-        return;
+      // Handle Start Button Tap
+      return;
     }
     setState(() {
       _selectedIndex = index;
@@ -137,7 +137,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               _buildNavItem(1, Icons.map_outlined, 'Routes'),
               const SizedBox(width: 48), // Space for FAB
               _buildNavItem(3, Icons.people_outline, 'Community'),
-              _buildNavItem(4, Icons.person_outline_rounded, 'Profile'),
+              _buildNavItem(4, Icons.emoji_events_outlined, 'Challenges'),
             ],
           ),
         ),
@@ -157,7 +157,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           children: [
             Icon(
               icon,
-              color: isSelected ? CruizrTheme.primaryDark : CruizrTheme.textSecondary,
+              color: isSelected
+                  ? CruizrTheme.primaryDark
+                  : CruizrTheme.textSecondary,
               size: 26,
             ),
             const SizedBox(height: 2),
@@ -166,7 +168,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? CruizrTheme.primaryDark : CruizrTheme.textSecondary,
+                color: isSelected
+                    ? CruizrTheme.primaryDark
+                    : CruizrTheme.textSecondary,
               ),
             ),
           ],

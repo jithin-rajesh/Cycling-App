@@ -11,8 +11,10 @@ import '../services/directions_service.dart';
 import '../services/elevation_service.dart';
 import 'follow_route_screen.dart';
 
-// API key is passed via --dart-define=GOOGLE_MAPS_API_KEY=...
-const String _mapsApiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+import '../config/secrets.dart';
+
+// API key is passed via secrets.dart
+const String _mapsApiKey = googleMapsApiKey;
 
 class CreateRouteScreen extends StatefulWidget {
   const CreateRouteScreen({super.key});
@@ -26,27 +28,27 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   final List<LatLng> _waypoints = [];
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
-  
+
   // Location tracking
   Position? _currentPosition;
   BitmapDescriptor? _locationMarkerIcon;
-  
+
   // Route type: 0 = Loop, 1 = One Way, 2 = Out & Back
   int _routeType = 1; // Default to One Way
   // Routing preference: 0 = Cycling, 1 = Walking, 2 = Direct
   int _routingPreference = 0;
   // Auto-snap enabled (uses Directions API when true)
   bool _autoSnap = true;
-  
+
   // Loading state for route fetching
   bool _isLoadingRoute = false;
   bool _isMapExpanded = false; // For small screens
-  
+
   // Stats
   double _distance = 0.0;
   int _elevation = 0;
   int _duration = 0;
-  
+
   // Directions service
   late DirectionsService _directionsService;
   // Elevation service
@@ -126,34 +128,38 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     const double borderWidth = 4;
     const double centerX = totalWidth / 2;
     const double centerY = circleSize / 2 + 2;
-    
+
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    
+
     final shadowPaint = Paint()
       ..color = Colors.black.withValues(alpha: 0.25)
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-    
+
     final whitePaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
-    
+
     final pinkPaint = Paint()
       ..color = CruizrTheme.accentPink
       ..style = PaintingStyle.fill;
-    
+
     // Draw shadow tip
     final shadowTipPath = Path();
-    shadowTipPath.moveTo(centerX - 8 + shadowOffset, centerY + circleSize / 2 - 6 + shadowOffset);
-    shadowTipPath.lineTo(centerX + 8 + shadowOffset, centerY + circleSize / 2 - 6 + shadowOffset);
-    shadowTipPath.lineTo(centerX + shadowOffset, centerY + tipHeight + circleSize / 2 - 10 + shadowOffset);
+    shadowTipPath.moveTo(centerX - 8 + shadowOffset,
+        centerY + circleSize / 2 - 6 + shadowOffset);
+    shadowTipPath.lineTo(centerX + 8 + shadowOffset,
+        centerY + circleSize / 2 - 6 + shadowOffset);
+    shadowTipPath.lineTo(centerX + shadowOffset,
+        centerY + tipHeight + circleSize / 2 - 10 + shadowOffset);
     shadowTipPath.close();
     canvas.drawPath(shadowTipPath, shadowPaint);
-    
+
     // Draw shadow circle
-    canvas.drawCircle(Offset(centerX + shadowOffset, centerY + shadowOffset), circleSize / 2, shadowPaint);
-    
+    canvas.drawCircle(Offset(centerX + shadowOffset, centerY + shadowOffset),
+        circleSize / 2, shadowPaint);
+
     // Draw white tip
     final tipPath = Path();
     tipPath.moveTo(centerX - 8, centerY + circleSize / 2 - 6);
@@ -161,17 +167,19 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     tipPath.lineTo(centerX, centerY + tipHeight + circleSize / 2 - 10);
     tipPath.close();
     canvas.drawPath(tipPath, whitePaint);
-    
+
     // Draw white outer circle
     canvas.drawCircle(Offset(centerX, centerY), circleSize / 2, whitePaint);
-    
+
     // Draw pink inner circle
-    canvas.drawCircle(Offset(centerX, centerY), circleSize / 2 - borderWidth, pinkPaint);
-    
+    canvas.drawCircle(
+        Offset(centerX, centerY), circleSize / 2 - borderWidth, pinkPaint);
+
     final picture = recorder.endRecording();
-    final image = await picture.toImage(totalWidth.toInt(), totalHeight.toInt());
+    final image =
+        await picture.toImage(totalWidth.toInt(), totalHeight.toInt());
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    
+
     return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
   }
 
@@ -197,11 +205,13 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
           return;
         }
       }
-      
+
       if (permission == LocationPermission.deniedForever) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location permission permanently denied. Allow in settings.')),
+          const SnackBar(
+              content: Text(
+                  'Location permission permanently denied. Allow in settings.')),
         );
         return;
       }
@@ -209,15 +219,15 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      
+
       if (!mounted) return;
 
       setState(() {
         _currentPosition = position;
       });
-      
+
       _updateLocationMarker();
-      
+
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
       );
@@ -236,7 +246,8 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         _markers.add(
           Marker(
             markerId: const MarkerId('current_location'),
-            position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            position:
+                LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
             icon: _locationMarkerIcon!,
             anchor: const Offset(0.5, 1.0),
           ),
@@ -308,10 +319,10 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         _distance = result.distanceKm;
         _duration = result.durationMinutes;
       });
-      
+
       // Fetch elevation data for the route
       await _fetchElevation(result.polylinePoints);
-      
+
       setState(() {
         _isLoadingRoute = false;
       });
@@ -334,10 +345,11 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
 
     // Don't modify loading state here as it's handled by _updateRoute
     // Just fetch and update elevation
-    
+
     final result = await _elevationService.getElevation(
       routePoints: points,
-      samples: math.min(points.length, 256), // Limit samples to avoid quota issues
+      samples:
+          math.min(points.length, 256), // Limit samples to avoid quota issues
     );
 
     if (!mounted) return;
@@ -360,9 +372,9 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
       _polylines.clear();
       return;
     }
-    
+
     List<LatLng> points = List.from(_waypoints);
-    
+
     // If loop, connect back to start
     if (_routeType == 0 && _waypoints.length > 1) {
       points.add(_waypoints.first);
@@ -371,7 +383,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     else if (_routeType == 2 && _waypoints.length > 1) {
       points.addAll(_waypoints.reversed.skip(1));
     }
-    
+
     setState(() {
       _polylines.clear();
       _polylines.add(
@@ -391,14 +403,14 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     for (int i = 1; i < _waypoints.length; i++) {
       totalDistance += _calculateDistance(_waypoints[i - 1], _waypoints[i]);
     }
-    
+
     // Adjust for route type
     if (_routeType == 0 && _waypoints.length > 1) {
       totalDistance += _calculateDistance(_waypoints.last, _waypoints.first);
     } else if (_routeType == 2) {
       totalDistance *= 2;
     }
-    
+
     setState(() {
       _distance = totalDistance;
       // Rough estimate: 3 min per km for cycling
@@ -418,7 +430,8 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     if (_waypoints.isNotEmpty) {
       setState(() {
         _waypoints.removeLast();
-        _markers.removeWhere((m) => m.markerId.value == 'waypoint_${_waypoints.length + 1}');
+        _markers.removeWhere(
+            (m) => m.markerId.value == 'waypoint_${_waypoints.length + 1}');
       });
       _updateRoute();
     }
@@ -442,14 +455,14 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
       );
       return;
     }
-    
+
     // Show dialog to get route name
     _showSaveRouteDialog();
   }
 
   void _showSaveRouteDialog() {
     final TextEditingController nameController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -486,7 +499,10 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
               Navigator.of(context).pop();
               _saveRouteToFirestore(name);
             },
-            child: Text('Save', style: TextStyle(color: CruizrTheme.accentPink, fontWeight: FontWeight.bold)),
+            child: Text('Save',
+                style: TextStyle(
+                    color: CruizrTheme.accentPink,
+                    fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -512,15 +528,19 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
       }
 
       // Convert LatLng to storable format
-      final routePointsData = routePoints.map((p) => {
-        'lat': p.latitude,
-        'lng': p.longitude,
-      }).toList();
+      final routePointsData = routePoints
+          .map((p) => {
+                'lat': p.latitude,
+                'lng': p.longitude,
+              })
+          .toList();
 
-      final waypointsData = _waypoints.map((p) => {
-        'lat': p.latitude,
-        'lng': p.longitude,
-      }).toList();
+      final waypointsData = _waypoints
+          .map((p) => {
+                'lat': p.latitude,
+                'lng': p.longitude,
+              })
+          .toList();
 
       // Save to Firestore
       await FirebaseFirestore.instance.collection('routes').add({
@@ -569,7 +589,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
           children: [
             // Header
             _buildHeader(),
-            
+
             // Map
             Expanded(
               flex: 3,
@@ -598,7 +618,8 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                       right: 0,
                       child: Center(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
@@ -615,7 +636,8 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                               SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               ),
                               SizedBox(width: 8),
                               Text('Calculating route...'),
@@ -634,22 +656,27 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           _buildMapButton(Icons.add, () {
-                            _mapController?.animateCamera(CameraUpdate.zoomIn());
+                            _mapController
+                                ?.animateCamera(CameraUpdate.zoomIn());
                           }),
                           const SizedBox(height: 8),
                           _buildMapButton(Icons.remove, () {
-                            _mapController?.animateCamera(CameraUpdate.zoomOut());
+                            _mapController
+                                ?.animateCamera(CameraUpdate.zoomOut());
                           }),
                           const SizedBox(height: 24),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               _buildMapButton(
-                                _isMapExpanded ? Icons.fullscreen_exit : Icons.fullscreen, 
-                                () => setState(() => _isMapExpanded = !_isMapExpanded)
-                              ),
+                                  _isMapExpanded
+                                      ? Icons.fullscreen_exit
+                                      : Icons.fullscreen,
+                                  () => setState(
+                                      () => _isMapExpanded = !_isMapExpanded)),
                               const SizedBox(width: 12),
-                              _buildMapButton(Icons.my_location, _getCurrentLocation),
+                              _buildMapButton(
+                                  Icons.my_location, _getCurrentLocation),
                             ],
                           ),
                         ],
@@ -660,7 +687,8 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                   if (_waypoints.isEmpty)
                     Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(20),
@@ -669,7 +697,6 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                           'Tap to add waypoints',
                           style: TextStyle(
                             color: CruizrTheme.textSecondary,
-                            fontStyle: FontStyle.italic,
                           ),
                         ),
                       ),
@@ -682,98 +709,123 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                       right: 16,
                       child: PointerInterceptor(
                         child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Floating Stats Panel
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _buildExpandedStat('Distance', '${_distance.toStringAsFixed(2)} km'),
-                                Container(width: 1, height: 24, color: Colors.grey.withValues(alpha: 0.3)),
-                                _buildExpandedStat('Duration', '${_duration}m'),
-                                Container(width: 1, height: 24, color: Colors.grey.withValues(alpha: 0.3)),
-                                _buildExpandedStat('Elev', '${_elevation.toStringAsFixed(0)}m'),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Toolbar (Undo, Clear, AutoSnap)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(30),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.undo, color: Color(0xFF5D4037)),
-                                  onPressed: _undo,
-                                  tooltip: 'Undo',
-                                ),
-                                Container(width: 1, height: 20, color: Colors.grey.withValues(alpha: 0.2)),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Color(0xFF5D4037)),
-                                  onPressed: _clear,
-                                  tooltip: 'Clear',
-                                ),
-                                Container(width: 1, height: 20, color: Colors.grey.withValues(alpha: 0.2)),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.auto_fix_high,
-                                    color: _routingPreference != 2 
-                                        ? CruizrTheme.accentPink 
-                                        : const Color(0xFF5D4037),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Floating Stats Panel
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _routingPreference = _routingPreference == 2 ? 0 : 2;
-                                    });
-                                  },
-                                  tooltip: 'Auto Snap',
-                                ),
-                              ],
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildExpandedStat('Distance',
+                                      '${_distance.toStringAsFixed(2)} km'),
+                                  Container(
+                                      width: 1,
+                                      height: 24,
+                                      color:
+                                          Colors.grey.withValues(alpha: 0.3)),
+                                  _buildExpandedStat(
+                                      'Duration', '${_duration}m'),
+                                  Container(
+                                      width: 1,
+                                      height: 24,
+                                      color:
+                                          Colors.grey.withValues(alpha: 0.3)),
+                                  _buildExpandedStat('Elev',
+                                      '${_elevation.toStringAsFixed(0)}m'),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(height: 16),
+                            // Toolbar (Undo, Clear, AutoSnap)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.undo,
+                                        color: Color(0xFF5D4037)),
+                                    onPressed: _undo,
+                                    tooltip: 'Undo',
+                                  ),
+                                  Container(
+                                      width: 1,
+                                      height: 20,
+                                      color:
+                                          Colors.grey.withValues(alpha: 0.2)),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline,
+                                        color: Color(0xFF5D4037)),
+                                    onPressed: _clear,
+                                    tooltip: 'Clear',
+                                  ),
+                                  Container(
+                                      width: 1,
+                                      height: 20,
+                                      color:
+                                          Colors.grey.withValues(alpha: 0.2)),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.auto_fix_high,
+                                      color: _routingPreference != 2
+                                          ? CruizrTheme.accentPink
+                                          : const Color(0xFF5D4037),
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _routingPreference =
+                                            _routingPreference == 2 ? 0 : 2;
+                                      });
+                                    },
+                                    tooltip: 'Auto Snap',
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
-            
+
             if (!_isMapExpanded) ...[
               // Stats Panel
               _buildStatsPanel(),
-              
+
               // Route Type
               _buildRouteTypeSelector(),
-              
+
               // Routing Preference
               _buildRoutingPreference(),
-              
+
               const SizedBox(height: 16),
             ],
           ],
@@ -890,9 +942,12 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
           // Action buttons
           Row(
             children: [
-              Expanded(child: _buildActionButton(Icons.undo, 'Undo', _undo, false)),
+              Expanded(
+                  child: _buildActionButton(Icons.undo, 'Undo', _undo, false)),
               const SizedBox(width: 12),
-              Expanded(child: _buildActionButton(Icons.delete_outline, 'Clear', _clear, false)),
+              Expanded(
+                  child: _buildActionButton(
+                      Icons.delete_outline, 'Clear', _clear, false)),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildActionButton(
@@ -936,7 +991,8 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label, VoidCallback onTap, bool isActive) {
+  Widget _buildActionButton(
+      IconData icon, String label, VoidCallback onTap, bool isActive) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -987,9 +1043,11 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
             children: [
               Expanded(child: _buildTypeChip(0, Icons.loop, 'Loop')),
               const SizedBox(width: 12),
-              Expanded(child: _buildTypeChip(1, Icons.arrow_forward, 'One Way')),
+              Expanded(
+                  child: _buildTypeChip(1, Icons.arrow_forward, 'One Way')),
               const SizedBox(width: 12),
-              Expanded(child: _buildTypeChip(2, Icons.swap_horiz, 'Out & Back')),
+              Expanded(
+                  child: _buildTypeChip(2, Icons.swap_horiz, 'Out & Back')),
             ],
           ),
         ],
@@ -1019,14 +1077,18 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
           children: [
             Icon(
               icon,
-              color: isSelected ? CruizrTheme.accentPink : CruizrTheme.textSecondary,
+              color: isSelected
+                  ? CruizrTheme.accentPink
+                  : CruizrTheme.textSecondary,
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? CruizrTheme.accentPink : CruizrTheme.textSecondary,
+                color: isSelected
+                    ? CruizrTheme.accentPink
+                    : CruizrTheme.textSecondary,
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
@@ -1089,7 +1151,9 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? CruizrTheme.accentPink : CruizrTheme.textSecondary,
+                color: isSelected
+                    ? CruizrTheme.accentPink
+                    : CruizrTheme.textSecondary,
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
@@ -1099,10 +1163,12 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
       ),
     );
   }
+
   Widget _buildExpandedStat(String label, String value) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
       ],
     );

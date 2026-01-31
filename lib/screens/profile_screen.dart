@@ -8,8 +8,6 @@ import '../theme/app_theme.dart';
 import '../widgets/cruizr_switch.dart';
 import '../services/strava_service.dart';
 
-
-
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -21,34 +19,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isUploadingImage = false;
-  
+
   // Profile data
   String? _photoUrl;
   final _preferredNameController = TextEditingController();
   String? _selectedPronoun;
   final _birthYearController = TextEditingController();
   final _locationController = TextEditingController();
-  
+
   // Activities
   Set<String> _selectedActivities = {};
-  
+
   // Activity level
   String? _activityLevel;
   String? _badgeTier; // Computed tier from activity
   String _measurementSystem = 'metric';
-  
+
   // Privacy settings
   String _profileVisibility = 'public';
   String _activitySharing = 'followers';
   bool _liveActivitySharing = true;
-  
+
   // Notifications
   bool _activityReminders = true;
   bool _communityUpdates = true;
   bool _achievementCelebrations = false;
-  
+
   // Connected Apps
   bool _isStravaConnected = false;
+  bool _autoUploadActivity = true;
 
   final List<String> _pronounOptions = [
     'he/him',
@@ -93,11 +92,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadUserData();
     _checkStravaStatus();
   }
-  
+
   Future<void> _checkStravaStatus() async {
     final connected = await StravaService().isAuthenticated();
     if (mounted) {
-        setState(() => _isStravaConnected = connected);
+      setState(() => _isStravaConnected = connected);
     }
   }
 
@@ -127,21 +126,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _selectedPronoun = data['pronouns'];
           _birthYearController.text = data['birthYear']?.toString() ?? '';
           _locationController.text = data['location'] ?? '';
-          
+
           _selectedActivities = Set<String>.from(data['activities'] ?? []);
           _activityLevel = data['activityLevel'];
           _badgeTier = data['badgeTier'] ?? 'Relaxed';
           _measurementSystem = data['measurementSystem'] ?? 'metric';
-          
+
           _profileVisibility = data['profileVisibility'] ?? 'public';
           _activitySharing = data['activitySharing'] ?? 'followers';
           _liveActivitySharing = data['liveActivitySharing'] ?? true;
-          
-          final notifications = data['notifications'] as Map<String, dynamic>? ?? {};
+
+          final notifications =
+              data['notifications'] as Map<String, dynamic>? ?? {};
           _activityReminders = notifications['activityReminders'] ?? true;
           _communityUpdates = notifications['communityUpdates'] ?? true;
-          _achievementCelebrations = notifications['achievementCelebrations'] ?? false;
-          
+          _autoUploadActivity = data['autoUploadActivity'] ?? true;
+          _achievementCelebrations =
+              notifications['achievementCelebrations'] ?? false;
+
           _isLoading = false;
         });
       } else {
@@ -164,7 +166,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({
         'photoUrl': _photoUrl, // Save the photo URL
         'preferredName': _preferredNameController.text.trim(),
         'pronouns': _selectedPronoun,
@@ -213,7 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _signOut() async {
     // Pop all screens to return to AuthGate (root)
     Navigator.of(context).popUntil((route) => route.isFirst);
-    
+
     // Sign out to trigger AuthGate stream
     await FirebaseAuth.instance.signOut();
   }
@@ -235,16 +240,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 'Change Profile Photo',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontFamily: 'Playfair Display',
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontFamily: 'Playfair Display',
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 24),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: CruizrTheme.accentPink.withOpacity(0.1),
+                    color: CruizrTheme.accentPink.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.upload_file, color: CruizrTheme.accentPink),
@@ -256,7 +261,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              const Text('Or choose a generic avatar:', style: TextStyle(color: Colors.grey)),
+              const Text('Or choose a generic avatar:',
+                  style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 12),
               SizedBox(
                 height: 70,
@@ -278,10 +284,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
+                            color: isSelected
+                                ? CruizrTheme.accentPink
+                                : Colors.transparent,
                             width: 3,
                           ),
-                          image: DecorationImage(image: NetworkImage(avatarUrl)),
+                          image:
+                              DecorationImage(image: NetworkImage(avatarUrl)),
                         ),
                       ),
                     );
@@ -298,8 +307,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     try {
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512); // Limit size
-      
+      final XFile? image = await picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 512,
+          maxHeight: 512); // Limit size
+
       if (image != null) {
         _uploadImage(File(image.path));
       }
@@ -330,12 +342,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _photoUrl = downloadUrl;
         _isUploadingImage = false;
       });
-      
+
       // Auto-save just the image part so it feels snappy?
       // Or just let user hit save. Let's let user hit save to be consistent with other fields.
-      // Actually, for profile pics, users expect immediate save usually. 
+      // Actually, for profile pics, users expect immediate save usually.
       // But for this form, explicit save is safer.
-      
     } catch (e) {
       setState(() => _isUploadingImage = false);
       if (!mounted) return;
@@ -363,7 +374,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             // Header
             _buildHeader(),
-            
+
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
@@ -373,7 +384,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // Profile Photo & Name Section
                     _buildProfileHeader(),
                     const SizedBox(height: 32),
-                    
+
                     // Personal Info Section
                     _buildSectionTitle('Personal Info'),
                     const SizedBox(height: 16),
@@ -385,37 +396,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 16),
                     _buildEarnedBadgesSection(),
                     const SizedBox(height: 32),
-                    
+
                     // Activities Section
                     _buildSectionTitle('Activities'),
                     const SizedBox(height: 16),
                     _buildActivitiesSection(),
                     const SizedBox(height: 32),
-                    
+
                     // Activity Level Section
                     _buildSectionTitle('Activity Level'),
                     const SizedBox(height: 16),
                     _buildActivityLevelSection(),
                     const SizedBox(height: 32),
-                    
+
                     // Privacy Settings Section
                     _buildSectionTitle('Privacy & Safety'),
                     const SizedBox(height: 16),
                     _buildPrivacySection(),
                     const SizedBox(height: 32),
-                    
+
                     // Notifications Section
                     _buildSectionTitle('Notifications'),
                     const SizedBox(height: 16),
                     _buildNotificationsSection(),
                     const SizedBox(height: 32),
-                    
+
                     // Connected Apps
                     _buildSectionTitle('Connected Apps'),
                     const SizedBox(height: 16),
                     _buildConnectedAppsSection(),
                     const SizedBox(height: 32),
-                    
+
                     // Sign Out Button
                     _buildSignOutButton(),
                     const SizedBox(height: 32),
@@ -430,18 +441,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildHeader() {
+    final canPop = Navigator.canPop(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const SizedBox(width: 48), // Spacer for balance
+          if (canPop)
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            )
+          else
+            const SizedBox(width: 48), // Spacer for balance
           Text(
             'Profile',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontFamily: 'Playfair Display',
-              fontStyle: FontStyle.italic,
-            ),
+                  fontFamily: 'Playfair Display',
+                ),
           ),
           TextButton(
             onPressed: _isSaving ? null : _saveProfile,
@@ -503,7 +520,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: Colors.black26,
                         shape: BoxShape.circle,
                       ),
-                      child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+                      child: const Center(
+                          child:
+                              CircularProgressIndicator(color: Colors.white)),
                     ),
                   ),
                 Positioned(
@@ -516,7 +535,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
-                    child: const Icon(Icons.edit, size: 14, color: Colors.white),
+                    child:
+                        const Icon(Icons.edit, size: 14, color: Colors.white),
                   ),
                 ),
               ],
@@ -526,14 +546,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(
             user?.displayName ?? 'User',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontFamily: 'Playfair Display',
-            ),
+                  fontFamily: 'Playfair Display',
+                ),
           ),
           Text(
             user?.email ?? '',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: CruizrTheme.textSecondary,
-            ),
+                  color: CruizrTheme.textSecondary,
+                ),
           ),
         ],
       ),
@@ -544,10 +564,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Text(
       title,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        fontFamily: 'Playfair Display',
-        fontWeight: FontWeight.bold,
-        fontStyle: FontStyle.italic,
-      ),
+            fontFamily: 'Playfair Display',
+            fontWeight: FontWeight.bold,
+          ),
     );
   }
 
@@ -563,19 +582,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           // Preferred Name
-          _buildTextField('Preferred Name', _preferredNameController, 'What should we call you?'),
+          _buildTextField('Preferred Name', _preferredNameController,
+              'What should we call you?'),
           const SizedBox(height: 16),
-          
+
           // Pronouns Dropdown
-          _buildDropdown('Pronouns', _selectedPronoun, _pronounOptions, 
-            (value) => setState(() => _selectedPronoun = value)),
+          _buildDropdown('Pronouns', _selectedPronoun, _pronounOptions,
+              (value) => setState(() => _selectedPronoun = value)),
           const SizedBox(height: 16),
-          
+
           // Birth Year
-          _buildTextField('Birth Year', _birthYearController, 'e.g. 1995', 
-            keyboardType: TextInputType.number),
+          _buildTextField('Birth Year', _birthYearController, 'e.g. 1995',
+              keyboardType: TextInputType.number),
           const SizedBox(height: 16),
-          
+
           // Location
           _buildTextField('Location', _locationController, 'City, Country'),
         ],
@@ -583,7 +603,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, String hint, 
+  Widget _buildTextField(
+      String label, TextEditingController controller, String hint,
       {TextInputType? keyboardType}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -609,7 +630,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildDropdown(String label, String? value, List<String> options, 
+  Widget _buildDropdown(String label, String? value, List<String> options,
       ValueChanged<String?> onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -626,9 +647,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              hint: Text('Select', style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: CruizrTheme.textSecondary,
-              )),
+              hint: Text('Select',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: CruizrTheme.textSecondary,
+                      )),
               items: options.map((String v) {
                 return DropdownMenuItem<String>(value: v, child: Text(v));
               }).toList(),
@@ -675,10 +697,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: tierColor.withOpacity(0.3), width: 2),
+        border: Border.all(color: tierColor.withValues(alpha: 0.3), width: 2),
         boxShadow: [
           BoxShadow(
-            color: tierColor.withOpacity(0.1),
+            color: tierColor.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -752,7 +774,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   scale: isSelected ? 1.1 : 1.0,
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutBack,
-                  child: Text(activity['emoji']!, style: const TextStyle(fontSize: 20)),
+                  child: Text(activity['emoji']!,
+                      style: const TextStyle(fontSize: 20)),
                 ),
                 const SizedBox(width: 8),
                 AnimatedDefaultTextStyle(
@@ -760,7 +783,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   curve: Curves.easeOutCubic,
                   style: TextStyle(
                     color: isSelected ? Colors.white : CruizrTheme.textPrimary,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
                     fontSize: 14,
                   ),
                   child: Text(activity['name']!),
@@ -798,13 +822,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: isSelected ? Colors.white : Colors.transparent,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
+                      color: isSelected
+                          ? CruizrTheme.accentPink
+                          : Colors.transparent,
                       width: 2,
                     ),
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                              color: CruizrTheme.accentPink.withValues(alpha: 0.2),
+                              color:
+                                  CruizrTheme.accentPink.withValues(alpha: 0.2),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -817,15 +844,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         scale: isSelected ? 1.15 : 1.0,
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeOutBack,
-                        child: Text(level['emoji']!, style: const TextStyle(fontSize: 28)),
+                        child: Text(level['emoji']!,
+                            style: const TextStyle(fontSize: 28)),
                       ),
                       const SizedBox(height: 4),
                       AnimatedDefaultTextStyle(
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeOutCubic,
                         style: TextStyle(
-                          color: isSelected ? CruizrTheme.accentPink : CruizrTheme.textPrimary,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          color: isSelected
+                              ? CruizrTheme.accentPink
+                              : CruizrTheme.textPrimary,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.normal,
                           fontSize: 12,
                         ),
                         child: Text(level['name']!),
@@ -837,91 +868,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }).toList(),
           ),
           const SizedBox(height: 20),
-          
-          // Measurement System Toggle with Sliding Indicator
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final segmentWidth = (constraints.maxWidth - 8) / 2;
-              final selectedIndex = _measurementSystem == 'metric' ? 0 : 1;
-              return Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                padding: const EdgeInsets.all(4),
-                child: Stack(
-                  children: [
-                    // Sliding Indicator
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOutCubic,
-                      left: selectedIndex * segmentWidth,
-                      top: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: segmentWidth,
-                        decoration: BoxDecoration(
-                          color: CruizrTheme.accentPink,
-                          borderRadius: BorderRadius.circular(26),
-                          boxShadow: [
-                            BoxShadow(
-                              color: CruizrTheme.accentPink.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Labels
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _measurementSystem = 'metric'),
-                            behavior: HitTestBehavior.opaque,
-                            child: Center(
-                              child: AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeOutCubic,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: _measurementSystem == 'metric' 
-                                      ? Colors.white : CruizrTheme.textSecondary,
-                                ),
-                                child: const Text('Metric'),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _measurementSystem = 'imperial'),
-                            behavior: HitTestBehavior.opaque,
-                            child: Center(
-                              child: AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeOutCubic,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: _measurementSystem == 'imperial' 
-                                      ? Colors.white : CruizrTheme.textSecondary,
-                                ),
-                                child: const Text('Imperial'),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+
+          _buildMeasurementToggle(),
         ],
       ),
     );
@@ -938,27 +886,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Profile Visibility
-          Text('Profile Visibility', style: Theme.of(context).textTheme.bodyMedium),
+          Text('Profile Visibility',
+              style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 12),
           _buildThreeWayToggle(
             options: ['Public', 'Community', 'Private'],
             values: ['public', 'community', 'private'],
             selectedValue: _profileVisibility,
-            onChanged: (value) => setState(() => _profileVisibility = value),
+            onChanged: (value) {
+              setState(() => _profileVisibility = value);
+              _updateSetting('profileVisibility', value);
+            },
           ),
           const SizedBox(height: 20),
-          
+
           // Activity Sharing
-          Text('Activity Sharing', style: Theme.of(context).textTheme.bodyMedium),
+          Text('Activity Sharing',
+              style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 12),
           _buildThreeWayToggle(
             options: ['Everyone', 'Followers', 'Only Me'],
             values: ['everyone', 'followers', 'only_me'],
             selectedValue: _activitySharing,
-            onChanged: (value) => setState(() => _activitySharing = value),
+            onChanged: (value) {
+              setState(() => _activitySharing = value);
+              _updateSetting('activitySharing', value);
+            },
           ),
           const SizedBox(height: 20),
-          
+
           // Live Activity Sharing
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -967,18 +923,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Live Activity Sharing', 
+                    Text('Live Activity Sharing',
                         style: Theme.of(context).textTheme.bodyLarge),
                     Text('Share real-time location with contacts',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: CruizrTheme.textSecondary,
-                        )),
+                              color: CruizrTheme.textSecondary,
+                            )),
                   ],
                 ),
               ),
               CruizrSwitch(
                 value: _liveActivitySharing,
-                onChanged: (value) => setState(() => _liveActivitySharing = value),
+                onChanged: (value) {
+                  setState(() => _liveActivitySharing = value);
+                  _updateSetting('liveActivitySharing', value);
+                },
               ),
             ],
           ),
@@ -1041,8 +1000,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeOutCubic,
                           style: TextStyle(
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                            color: isSelected ? Colors.white : CruizrTheme.textSecondary,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w400,
+                            color: isSelected
+                                ? Colors.white
+                                : CruizrTheme.textSecondary,
                             fontSize: 12,
                           ),
                           child: Text(options[index]),
@@ -1068,20 +1030,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
-          _buildCheckboxTile('Activity reminders', _activityReminders, 
-            (v) => setState(() => _activityReminders = v ?? false)),
+          _buildCheckboxTile('Activity reminders', _activityReminders, (v) {
+            final val = v ?? false;
+            setState(() => _activityReminders = val);
+            _updateSetting('activityReminders', val);
+          }),
           const Divider(height: 24),
-          _buildCheckboxTile('Community updates', _communityUpdates,
-            (v) => setState(() => _communityUpdates = v ?? false)),
+          _buildCheckboxTile('Community updates', _communityUpdates, (v) {
+            final val = v ?? false;
+            setState(() => _communityUpdates = val);
+            _updateSetting('communityUpdates', val);
+          }),
           const Divider(height: 24),
-          _buildCheckboxTile('Achievement celebrations', _achievementCelebrations,
-            (v) => setState(() => _achievementCelebrations = v ?? false)),
+          _buildCheckboxTile(
+              'Achievement celebrations', _achievementCelebrations, (v) {
+            final val = v ?? false;
+            setState(() => _achievementCelebrations = val);
+            _updateSetting('achievementCelebrations', val);
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildCheckboxTile(String title, bool value, ValueChanged<bool?> onChanged) {
+  Widget _buildCheckboxTile(
+      String title, bool value, ValueChanged<bool?> onChanged) {
     return Row(
       children: [
         SizedBox(
@@ -1091,7 +1064,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             value: value,
             onChanged: onChanged,
             activeColor: CruizrTheme.accentPink,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           ),
         ),
         const SizedBox(width: 12),
@@ -1145,8 +1119,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       'Sync activities & routes',
                       style: TextStyle(
-                         color: Colors.grey,
-                         fontSize: 12,
+                        color: Colors.grey,
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -1155,10 +1129,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (_isStravaConnected)
                 TextButton(
                   onPressed: () async {
-                      await StravaService().disconnect();
-                      await _checkStravaStatus();
+                    await StravaService().disconnect();
+                    await _checkStravaStatus();
                   },
-                  child: const Text('Disconnect', style: TextStyle(color: Colors.red)),
+                  child: const Text('Disconnect',
+                      style: TextStyle(color: Colors.red)),
                 )
               else
                 ElevatedButton(
@@ -1175,29 +1150,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   child: const Text('Connect'),
                 ),
-                // Fallback for Desktop/Web where deep links might fail
-                // Fallback for manual code entry
-                Padding(
-                     padding: const EdgeInsets.only(left: 8),
-                     child: TextButton(
-                       onPressed: _showManualAuthDialog,
-                       child: const Text('Enter Code', style: TextStyle(fontSize: 10)),
-                     ),
-                  ),
+              // Fallback for Desktop/Web where deep links might fail
+              // Fallback for manual code entry
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: TextButton(
+                  onPressed: _showManualAuthDialog,
+                  child:
+                      const Text('Enter Code', style: TextStyle(fontSize: 10)),
+                ),
+              ),
             ],
           ),
           if (_isStravaConnected) ...[
-             const Padding(
-               padding: EdgeInsets.symmetric(vertical: 12),
-               child: Divider(),
-             ),
-             Row(
-               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-               children: [
-                 const Text('Auto-upload activities'),
-                 CruizrSwitch(value: true, onChanged: (val) {}), 
-               ],
-             ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Auto-upload activities'),
+                CruizrSwitch(
+                    value: _autoUploadActivity,
+                    onChanged: (val) {
+                      setState(() => _autoUploadActivity = val);
+                      _updateSetting('autoUploadActivity', val);
+                    }),
+              ],
+            ),
           ]
         ],
       ),
@@ -1236,18 +1217,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               final code = codeController.text.trim();
               if (code.isNotEmpty) {
-                 Navigator.pop(context); // Close dialog first
-                 final success = await StravaService().handleAuthCallback(code);
-                 
-                 if (!context.mounted) return; // Check context directly
-                 
-                 ScaffoldMessenger.of(context).showSnackBar(
-                   SnackBar(content: Text(success ? 'Connected!' : 'Failed to connect')),
-                 );
-                 
-                 if (success) {
-                     await _checkStravaStatus();
-                 }
+                Navigator.pop(context); // Close dialog first
+                final success = await StravaService().handleAuthCallback(code);
+
+                if (!context.mounted) return; // Check context directly
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content:
+                          Text(success ? 'Connected!' : 'Failed to connect')),
+                );
+
+                if (success) {
+                  await _checkStravaStatus();
+                }
               }
             },
             child: const Text('Verify'),
@@ -1266,9 +1249,145 @@ class _ProfileScreenState extends State<ProfileScreen> {
           foregroundColor: Colors.red,
           side: const BorderSide(color: Colors.red),
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         ),
         child: const Text('Sign Out'),
+      ),
+    );
+  }
+
+  Future<void> _updateSetting(String key, dynamic value) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({key: value});
+    } catch (e) {
+      debugPrint('Error updating setting $key: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save setting: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildMeasurementToggle() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CruizrTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.speed,
+                  size: 20, color: CruizrTheme.textSecondary),
+              const SizedBox(width: 8),
+              Text('Units', style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final segmentWidth = (constraints.maxWidth - 8) / 2;
+              final selectedIndex = _measurementSystem == 'metric' ? 0 : 1;
+              return Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Stack(
+                  children: [
+                    // Sliding Indicator
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      left: selectedIndex * segmentWidth,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: segmentWidth,
+                        decoration: BoxDecoration(
+                          color: CruizrTheme.accentPink,
+                          borderRadius: BorderRadius.circular(26),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  CruizrTheme.accentPink.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Labels
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() => _measurementSystem = 'metric');
+                              _updateSetting('measurementSystem', 'metric');
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Center(
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOutCubic,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: _measurementSystem == 'metric'
+                                      ? Colors.white
+                                      : CruizrTheme.textSecondary,
+                                ),
+                                child: const Text('Metric'),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() => _measurementSystem = 'imperial');
+                              _updateSetting('measurementSystem', 'imperial');
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Center(
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOutCubic,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: _measurementSystem == 'imperial'
+                                      ? Colors.white
+                                      : CruizrTheme.textSecondary,
+                                ),
+                                child: const Text('Imperial'),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

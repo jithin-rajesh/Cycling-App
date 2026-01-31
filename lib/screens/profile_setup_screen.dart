@@ -14,13 +14,13 @@ class ProfileSetupScreen extends StatefulWidget {
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   // Image
   String? _imageUrl;
-  
+
   // Controllers
   final _preferredNameController = TextEditingController();
   final _birthYearController = TextEditingController();
   final _locationController = TextEditingController();
   String? _selectedPronoun;
-  
+
   final List<String> _pronounOptions = [
     'he/him',
     'she/her',
@@ -65,9 +65,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         title: Text(
           'Profile Setup',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontStyle: FontStyle.italic,
-            fontSize: 20,
-          ),
+                fontSize: 20,
+              ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: CruizrTheme.textPrimary),
@@ -84,9 +83,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             child: Text(
               'Step 1 of 3',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: CruizrTheme.accentPink,
-                fontWeight: FontWeight.w500,
-              ),
+                    color: CruizrTheme.accentPink,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ),
         ],
@@ -102,9 +101,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               Text(
                 'Tell us about\nyourself',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  height: 1.2,
-                  fontSize: 40,
-                ),
+                      height: 1.2,
+                      fontSize: 40,
+                    ),
                 textAlign: TextAlign.left,
               ),
               const SizedBox(height: 48),
@@ -146,7 +145,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               // Form Fields
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 8),
-                child: Text('Preferred Name', style: Theme.of(context).textTheme.bodyMedium),
+                child: Text('Preferred Name',
+                    style: Theme.of(context).textTheme.bodyMedium),
               ),
               TextField(
                 controller: _preferredNameController,
@@ -160,7 +160,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 8),
-                child: Text('Pronouns', style: Theme.of(context).textTheme.bodyMedium),
+                child: Text('Pronouns',
+                    style: Theme.of(context).textTheme.bodyMedium),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -175,8 +176,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     hint: Text(
                       'Select pronouns',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: CruizrTheme.textSecondary,
-                      ),
+                            color: CruizrTheme.textSecondary,
+                          ),
                     ),
                     dropdownColor: CruizrTheme.surface,
                     items: _pronounOptions.map((String value) {
@@ -197,7 +198,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 8),
-                child: Text('Birth Year', style: Theme.of(context).textTheme.bodyMedium),
+                child: Text('Birth Year',
+                    style: Theme.of(context).textTheme.bodyMedium),
               ),
               TextField(
                 controller: _birthYearController,
@@ -212,7 +214,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 8),
-                child: Text('Location', style: Theme.of(context).textTheme.bodyMedium),
+                child: Text('Location',
+                    style: Theme.of(context).textTheme.bodyMedium),
               ),
               TextField(
                 controller: _locationController,

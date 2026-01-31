@@ -32,10 +32,10 @@ class UserService {
     // Let's use arrays of strings for simplicity as per common use cases unless specified otherwise,
     // but subcollections are safer for 1M limits. Given "community panel", let's stick to subcollections for potential scale
     // OR just use arrays for MVP. arrays are easier to count. Let's start with arrays for IDs.
-    
+
     // Actually, let's use a subcollection 'following' and 'followers' for each user to be safe and scalable.
     // And store a counter on the main doc.
-    
+
     final currentUserRef = _firestore.collection('users').doc(currentUser.uid);
     final targetUserRef = _firestore.collection('users').doc(targetUid);
 
@@ -98,10 +98,10 @@ class UserService {
         .collection('following')
         .doc(targetUid)
         .get();
-        
+
     return doc.exists;
   }
-  
+
   // Get follow counts (if not on main doc, this is backup, but we increment on main doc)
   Future<Map<String, int>> getFollowCounts(String uid) async {
     final doc = await _firestore.collection('users').doc(uid).get();
@@ -118,6 +118,18 @@ class UserService {
   // Get routes created by user
   Future<List<Map<String, dynamic>>> getUserRoutes(String uid) async {
     try {
+      // Check privacy first
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        final currentUser = _auth.currentUser;
+        final isMe = currentUser != null && currentUser.uid == uid;
+
+        if (userData?['profileVisibility'] == 'private' && !isMe) {
+          return [];
+        }
+      }
+
       final query = await _firestore
           .collection('routes')
           .where('userId', isEqualTo: uid)
@@ -127,11 +139,88 @@ class UserService {
       return query.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id; // Include ID
-        return data; 
+        return data;
       }).toList();
     } catch (e) {
+      // ignore: avoid_print
       print('Error fetching user routes: $e');
       return [];
     }
+  }
+
+  // Save a new goal
+  Future<void> saveGoal({
+    required String target,
+    required String metric,
+    required int durationAmount,
+    required String durationUnit, // 'Day', 'Week', 'Month'
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    // Calculate end date based on duration
+    DateTime now = DateTime.now();
+    DateTime endDate = now;
+    if (durationUnit == 'Day') {
+      endDate = now.add(Duration(days: durationAmount));
+    } else if (durationUnit == 'Week') {
+      endDate = now.add(Duration(days: durationAmount * 7));
+    } else if (durationUnit == 'Month') {
+      endDate = now.add(Duration(days: durationAmount * 30));
+    }
+
+    // Pluralize label if amount > 1
+    String unitLabel = durationUnit;
+    if (durationAmount > 1) {
+      unitLabel = '${durationUnit}s';
+    }
+
+    await _firestore.collection('users').doc(user.uid).collection('goals').add({
+      'target': target,
+      'metric': metric,
+      'durationAmount': durationAmount,
+      'durationUnit': durationUnit,
+      'durationLabel': '$durationAmount $unitLabel',
+      'startDate': FieldValue.serverTimestamp(),
+      'endDate': endDate,
+      'status': 'active', // active, completed, failed
+      'progress': 0,
+    });
+  }
+
+  // Stream active goals
+  Stream<List<Map<String, dynamic>>> getActiveGoalsStream() {
+    final user = _auth.currentUser;
+    if (user == null) return const Stream.empty();
+
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('goals')
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .map((snapshot) {
+      final now = DateTime.now();
+      final docs = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).where((data) {
+        // Client-side filter for end date
+        if (data['endDate'] is Timestamp) {
+          return (data['endDate'] as Timestamp).toDate().isAfter(now);
+        }
+        return false;
+      }).toList();
+
+      // Client-side sort
+      docs.sort((a, b) {
+        final aDate = (a['endDate'] as Timestamp).toDate();
+        final bDate = (b['endDate'] as Timestamp).toDate();
+        return aDate.compareTo(bDate);
+      });
+
+      return docs;
+    });
   }
 }

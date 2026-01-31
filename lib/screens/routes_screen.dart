@@ -8,6 +8,7 @@ import '../services/strava_service.dart';
 import '../theme/app_theme.dart';
 import 'follow_route_screen.dart';
 import '../widgets/route_card.dart';
+import 'challenges_screen.dart'; // Import ChallengesScreen
 
 class RoutesScreen extends StatefulWidget {
   const RoutesScreen({super.key});
@@ -19,13 +20,13 @@ class RoutesScreen extends StatefulWidget {
 class _RoutesScreenState extends State<RoutesScreen> {
   final List<String> _filters = ["My Routes", "All Routes", "Strava Segments"];
   int _selectedFilterIndex = 0;
-  
+
   // Map State
   GoogleMapController? _mapController;
   final Set<Polyline> _segmentPolylines = {};
   final Set<Marker> _segmentMarkers = {};
   static const LatLng _defaultCenter = LatLng(12.9716, 77.5946); // Bangalore
-  
+
   // Custom map style (reuse from CreateRoute if possible, or simplified)
   static const String _mapStyle = '''
 [
@@ -88,8 +89,8 @@ class _RoutesScreenState extends State<RoutesScreen> {
             _buildHeader(),
             _buildFilters(),
             Expanded(
-              child: _selectedFilterIndex == 2 
-                  ? _buildSegmentsMap() 
+              child: _selectedFilterIndex == 2
+                  ? _buildSegmentsMap()
                   : _buildRoutesList(),
             ),
           ],
@@ -100,11 +101,11 @@ class _RoutesScreenState extends State<RoutesScreen> {
 
   Widget _buildRoutesList() {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     // Build query - for "My Routes", filter by userId first, then order
     // For "All Routes", just order by createdAt
     Query<Map<String, dynamic>> query;
-    
+
     if (_selectedFilterIndex == 0 && user != null) {
       // My Routes - filter first, then order
       query = FirebaseFirestore.instance
@@ -180,12 +181,14 @@ class _RoutesScreenState extends State<RoutesScreen> {
   void _navigateToRoute(Map<String, dynamic> routeData) {
     // Convert stored data back to LatLng
     final routePointsList = (routeData['routePoints'] as List?)?.map((p) {
-      return LatLng(p['lat'] as double, p['lng'] as double);
-    }).toList() ?? [];
+          return LatLng(p['lat'] as double, p['lng'] as double);
+        }).toList() ??
+        [];
 
     final waypointsList = (routeData['waypoints'] as List?)?.map((p) {
-      return LatLng(p['lat'] as double, p['lng'] as double);
-    }).toList() ?? [];
+          return LatLng(p['lat'] as double, p['lng'] as double);
+        }).toList() ??
+        [];
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -204,7 +207,8 @@ class _RoutesScreenState extends State<RoutesScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Route?'),
-        content: Text('Are you sure you want to delete "${routeName ?? 'this route'}"?'),
+        content: Text(
+            'Are you sure you want to delete "${routeName ?? 'this route'}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -219,7 +223,10 @@ class _RoutesScreenState extends State<RoutesScreen> {
     );
 
     if (confirmed == true) {
-      await FirebaseFirestore.instance.collection('routes').doc(routeId).delete();
+      await FirebaseFirestore.instance
+          .collection('routes')
+          .doc(routeId)
+          .delete();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Route deleted')),
@@ -237,9 +244,9 @@ class _RoutesScreenState extends State<RoutesScreen> {
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Color(0xFF5D4037)),
             onPressed: () {
-               if (Navigator.of(context).canPop()) {
-                 Navigator.of(context).pop();
-               }
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
             },
           ),
           const Text(
@@ -249,10 +256,27 @@ class _RoutesScreenState extends State<RoutesScreen> {
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Color(0xFF2D2D2D),
-              fontStyle: FontStyle.italic,
             ),
           ),
-          const SizedBox(width: 48), // Balance the header
+
+          // "Challenges" Button
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const ChallengesScreen()),
+              );
+            },
+            child: Text(
+              'Challenges',
+              style: TextStyle(
+                color: CruizrTheme.accentPink,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -272,13 +296,17 @@ class _RoutesScreenState extends State<RoutesScreen> {
             child: GestureDetector(
               onTap: () => setState(() => _selectedFilterIndex = index),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
                   color: isSelected ? CruizrTheme.accentPink : Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
-                     if (!isSelected)
-                       BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))
+                    if (!isSelected)
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2))
                   ],
                 ),
                 child: Text(
@@ -343,56 +371,60 @@ class _RoutesScreenState extends State<RoutesScreen> {
 
   Future<void> _fetchSegmentsInView() async {
     if (_mapController == null) return;
-    
+
     final bounds = await _mapController!.getVisibleRegion();
     final southWest = bounds.southwest;
     final northEast = bounds.northeast;
-    
-    final boundsString = '${southWest.latitude},${southWest.longitude},${northEast.latitude},${northEast.longitude}';
-    
+
+    final boundsString =
+        '${southWest.latitude},${southWest.longitude},${northEast.latitude},${northEast.longitude}';
+
     final segments = await StravaService().exploreSegments(boundsString);
-    
+
     if (!mounted) return;
 
     setState(() {
       _segmentPolylines.clear();
       _segmentMarkers.clear();
-      
+
       for (var segment in segments) {
         final id = segment['id'].toString();
         // final name = segment['name'];
         final polylineEncoded = segment['points'];
         if (polylineEncoded != null && polylineEncoded.isNotEmpty) {
-           final points = PolylinePoints().decodePolyline(polylineEncoded);
-           final latLngs = points.map((p) => LatLng(p.latitude, p.longitude)).toList();
-           
-           _segmentPolylines.add(
-             Polyline(
-               polylineId: PolylineId('poly_$id'),
-               points: latLngs,
-               color: const Color(0xFFFC4C02).withValues(alpha: 0.7), // Strava Orange
-               width: 4,
-               onTap: () {
-                 // Open details when tapping line too
-                 _showSegmentDetails(segment);
-               },
-               consumeTapEvents: true,
-             ),
-           );
+          final points = PolylinePoints().decodePolyline(polylineEncoded);
+          final latLngs =
+              points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+
+          _segmentPolylines.add(
+            Polyline(
+              polylineId: PolylineId('poly_$id'),
+              points: latLngs,
+              color: const Color(0xFFFC4C02)
+                  .withValues(alpha: 0.7), // Strava Orange
+              width: 4,
+              onTap: () {
+                // Open details when tapping line too
+                _showSegmentDetails(segment);
+              },
+              consumeTapEvents: true,
+            ),
+          );
         }
-        
+
         // Markers for start points
         final startLat = segment['start_latlng'][0];
         final startLng = segment['start_latlng'][1];
-        
+
         _segmentMarkers.add(
           Marker(
             markerId: MarkerId(id),
             position: LatLng(startLat, startLng),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueOrange),
             consumeTapEvents: true,
             onTap: () {
-               _showSegmentDetails(segment);
+              _showSegmentDetails(segment);
             },
           ),
         );
@@ -416,21 +448,20 @@ class _RoutesScreenState extends State<RoutesScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.directions_bike, color: Color(0xFFFC4C02)), 
+                const Icon(Icons.directions_bike, color: Color(0xFFFC4C02)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     segment['name'],
                     style: const TextStyle(
-                      color: Colors.white, 
-                      fontSize: 20, 
-                      fontWeight: FontWeight.bold
-                    ),
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
-                   icon: const Icon(Icons.star_border, color: Colors.white),
-                   onPressed: () {}, 
+                  icon: const Icon(Icons.star_border, color: Colors.white),
+                  onPressed: () {},
                 ),
               ],
             ),
@@ -438,9 +469,11 @@ class _RoutesScreenState extends State<RoutesScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildSegmentStat('Distance', '${(segment['distance'] / 1000).toStringAsFixed(1)} km'),
+                _buildSegmentStat('Distance',
+                    '${(segment['distance'] / 1000).toStringAsFixed(1)} km'),
                 _buildSegmentStat('Avg Grade', '${segment['avg_grade']}%'),
-                _buildSegmentStat('Cat', '${segment['climb_category_desc'] ?? "-"}'),
+                _buildSegmentStat(
+                    'Cat', '${segment['climb_category_desc'] ?? "-"}'),
               ],
             ),
             const SizedBox(height: 24),
@@ -451,48 +484,54 @@ class _RoutesScreenState extends State<RoutesScreen> {
                   backgroundColor: const Color(0xFFFC4C02),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () {
-                     Navigator.pop(context);
+                  Navigator.pop(context);
                 },
                 child: const Text('View on Strava'),
               ),
             ),
-             const SizedBox(height: 12),
-             SizedBox(
+            const SizedBox(height: 12),
+            SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: CruizrTheme.accentPink,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () {
-                     final polylineEncoded = segment['points'];
-                     if (polylineEncoded != null && polylineEncoded.isNotEmpty) {
-                        Navigator.pop(context);
-                        final points = PolylinePoints().decodePolyline(polylineEncoded);
-                        final latLngs = points.map((p) => LatLng(p.latitude, p.longitude)).toList();
-                        
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => FollowRouteScreen(
-                              routePoints: latLngs,
-                              waypoints: [latLngs.first, latLngs.last],
-                              distanceKm: (segment['distance'] ?? 0) / 1000.0,
-                              durationMinutes: 30, 
-                              elevationGain: (segment['elev_difference'] ?? 0).toDouble(), // Pass elevation
-                            ),
-                          ),
-                        );
-                     } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                           const SnackBar(content: Text('Route path not available')),
-                        );
-                     }
+                  final polylineEncoded = segment['points'];
+                  if (polylineEncoded != null && polylineEncoded.isNotEmpty) {
+                    Navigator.pop(context);
+                    final points =
+                        PolylinePoints().decodePolyline(polylineEncoded);
+                    final latLngs = points
+                        .map((p) => LatLng(p.latitude, p.longitude))
+                        .toList();
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FollowRouteScreen(
+                          routePoints: latLngs,
+                          waypoints: [latLngs.first, latLngs.last],
+                          distanceKm: (segment['distance'] ?? 0) / 1000.0,
+                          durationMinutes: 30,
+                          elevationGain: (segment['elev_difference'] ?? 0)
+                              .toDouble(), // Pass elevation
+                        ),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Route path not available')),
+                    );
+                  }
                 },
                 child: const Text('Start Route'),
               ),
@@ -506,12 +545,13 @@ class _RoutesScreenState extends State<RoutesScreen> {
   Widget _buildSegmentStat(String label, String value) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(value,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
         Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
       ],
     );
   }
 }
-
-
-

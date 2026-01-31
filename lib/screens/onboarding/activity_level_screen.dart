@@ -72,10 +72,9 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
           'Activity\nLevel',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontStyle: FontStyle.italic,
-            fontSize: 18,
-            height: 1.2,
-          ),
+                fontSize: 18,
+                height: 1.2,
+              ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: CruizrTheme.textPrimary),
@@ -92,9 +91,9 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
             child: Text(
               'Step 2 of 3',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: CruizrTheme.accentPink,
-                fontWeight: FontWeight.w500,
-              ),
+                    color: CruizrTheme.accentPink,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ),
         ],
@@ -123,9 +122,9 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                   Text(
                     'Your current\nactivity level',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: 32,
-                      height: 1.2,
-                    ),
+                          fontSize: 32,
+                          height: 1.2,
+                        ),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -138,7 +137,8 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
@@ -148,7 +148,7 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                     itemBuilder: (context, index) {
                       final level = _levels[index];
                       final isSelected = _selectedLevel == level['id'];
-                      
+
                       return GestureDetector(
                         onTap: () {
                           setState(() {
@@ -158,19 +158,25 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           decoration: BoxDecoration(
-                            color: isSelected ? Colors.white : CruizrTheme.surface,
+                            color:
+                                isSelected ? Colors.white : CruizrTheme.surface,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: isSelected ? CruizrTheme.accentPink : Colors.transparent,
+                              color: isSelected
+                                  ? CruizrTheme.accentPink
+                                  : Colors.transparent,
                               width: 2,
                             ),
-                            boxShadow: isSelected ? [
-                              BoxShadow(
-                                color: CruizrTheme.accentPink.withValues(alpha: 0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ] : null,
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: CruizrTheme.accentPink
+                                          .withValues(alpha: 0.1),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ]
+                                : null,
                           ),
                           padding: const EdgeInsets.all(16),
                           child: Column(
@@ -183,18 +189,29 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 level['name']!,
-                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected ? CruizrTheme.accentPink : CruizrTheme.primaryDark,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: isSelected
+                                          ? CruizrTheme.accentPink
+                                          : CruizrTheme.primaryDark,
+                                    ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 level['description']!,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontSize: 12,
-                                  color: isSelected ? CruizrTheme.accentPink.withValues(alpha: 0.7) : CruizrTheme.textSecondary,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontSize: 12,
+                                      color: isSelected
+                                          ? CruizrTheme.accentPink
+                                              .withValues(alpha: 0.7)
+                                          : CruizrTheme.textSecondary,
+                                    ),
                                 textAlign: TextAlign.center,
                               ),
                             ],
@@ -209,8 +226,8 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                   Text(
                     'Preferred Measurement System',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
                   const SizedBox(height: 16),
                   Container(
@@ -223,28 +240,42 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setState(() => _measurementSystem = 'metric'),
+                            onTap: () =>
+                                setState(() => _measurementSystem = 'metric'),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: _measurementSystem == 'metric' ? Colors.white : Colors.transparent,
+                                color: _measurementSystem == 'metric'
+                                    ? Colors.white
+                                    : Colors.transparent,
                                 borderRadius: BorderRadius.circular(26),
-                                boxShadow: _measurementSystem == 'metric' ? [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 5,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ] : null,
+                                boxShadow: _measurementSystem == 'metric'
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.05),
+                                          blurRadius: 5,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
                               ),
                               child: Center(
                                 child: Text(
                                   'Metric',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    fontWeight: _measurementSystem == 'metric' ? FontWeight.w600 : FontWeight.w400,
-                                    color: _measurementSystem == 'metric' ? CruizrTheme.primaryDark : CruizrTheme.textSecondary,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(
+                                        fontWeight:
+                                            _measurementSystem == 'metric'
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                        color: _measurementSystem == 'metric'
+                                            ? CruizrTheme.primaryDark
+                                            : CruizrTheme.textSecondary,
+                                      ),
                                 ),
                               ),
                             ),
@@ -252,28 +283,42 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                         ),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setState(() => _measurementSystem = 'imperial'),
+                            onTap: () =>
+                                setState(() => _measurementSystem = 'imperial'),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: _measurementSystem == 'imperial' ? Colors.white : Colors.transparent,
+                                color: _measurementSystem == 'imperial'
+                                    ? Colors.white
+                                    : Colors.transparent,
                                 borderRadius: BorderRadius.circular(26),
-                                boxShadow: _measurementSystem == 'imperial' ? [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 5,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ] : null,
+                                boxShadow: _measurementSystem == 'imperial'
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.05),
+                                          blurRadius: 5,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
                               ),
                               child: Center(
                                 child: Text(
                                   'Imperial',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    fontWeight: _measurementSystem == 'imperial' ? FontWeight.w600 : FontWeight.w400,
-                                    color: _measurementSystem == 'imperial' ? CruizrTheme.primaryDark : CruizrTheme.textSecondary,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(
+                                        fontWeight:
+                                            _measurementSystem == 'imperial'
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                        color: _measurementSystem == 'imperial'
+                                            ? CruizrTheme.primaryDark
+                                            : CruizrTheme.textSecondary,
+                                      ),
                                 ),
                               ),
                             ),

@@ -29,10 +29,11 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                   IconButton( // Close button
-                     icon: const Icon(Icons.close, color: Color(0xFF5D4037)),
-                     onPressed: () => Navigator.of(context).pop(),
-                   ),
+                  IconButton(
+                    // Close button
+                    icon: const Icon(Icons.close, color: Color(0xFF5D4037)),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
                 ],
               ),
               const Center(
@@ -43,7 +44,6 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF5D4037), // Dark brown
-                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ),
@@ -81,7 +81,8 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                 iconBgColor: const Color(0xFFFDF6F5),
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const CreateRouteScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const CreateRouteScreen()),
                   );
                 },
               ),
@@ -94,7 +95,8 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                 iconBgColor: const Color(0xFFE3F2FD),
                 onTap: () {
                   Navigator.of(context).pop(); // Close modal
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RoutesScreen()));
+                  Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const RoutesScreen()));
                 },
               ),
               const SizedBox(height: 20),
@@ -122,7 +124,7 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               _buildSensorCard(
                 icon: Icons.favorite,
                 name: "Heart Rate",
@@ -141,61 +143,66 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                 icon: Icons.bolt,
                 name: "Power Meter",
                 statusWidget: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFEBE9),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text("+ Add", style: TextStyle(color: Color(0xFF5D4037), fontWeight: FontWeight.bold)),
+                  child: const Text("+ Add",
+                      style: TextStyle(
+                          color: Color(0xFF5D4037),
+                          fontWeight: FontWeight.bold)),
                 ),
                 iconColor: Colors.orangeAccent,
               ),
 
               const SizedBox(height: 32),
-              
+
               // Live Tracking
               Container(
-                 padding: const EdgeInsets.all(20),
-                 decoration: BoxDecoration(
-                   color: const Color(0xFFFBF5F2), // Slightly darker/different shade if needed, or stick to white
-                   borderRadius: BorderRadius.circular(24),
-                   border: Border.all(color: Colors.white, width: 2), // Subtle border
-                 ),
-                 child: Row(
-                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                   children: [
-                     Column(
-                       crossAxisAlignment: CrossAxisAlignment.start,
-                       children: const [
-                         Text(
-                           "Live Tracking",
-                           style: TextStyle(
-                             fontWeight: FontWeight.bold,
-                             fontSize: 16,
-                             color: Color(0xFF2D2D2D),
-                           ),
-                         ),
-                         SizedBox(height: 4),
-                         Text(
-                           "Share location with selected\ncontacts",
-                           style: TextStyle(
-                             fontSize: 12,
-                             color: Colors.grey,
-                             fontStyle: FontStyle.italic,
-                           ),
-                         ),
-                       ],
-                     ),
-                      CruizrSwitch(
-                        value: _liveTrackingEnabled,
-                        onChanged: (val) {
-                          setState(() {
-                            _liveTrackingEnabled = val;
-                          });
-                        },
-                      ),
-                   ],
-                 ),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(
+                      0xFFFBF5F2), // Slightly darker/different shade if needed, or stick to white
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                      color: Colors.white, width: 2), // Subtle border
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          "Live Tracking",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Color(0xFF2D2D2D),
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          "Share location with selected\ncontacts",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                    CruizrSwitch(
+                      value: _liveTrackingEnabled,
+                      onChanged: (val) {
+                        setState(() {
+                          _liveTrackingEnabled = val;
+                        });
+                      },
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
             ],
@@ -279,7 +286,8 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBF5F2), // Light beige background for sensor items
+        color:
+            const Color(0xFFFBF5F2), // Light beige background for sensor items
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(

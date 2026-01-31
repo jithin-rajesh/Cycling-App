@@ -47,7 +47,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    
+
     // Parallel fetch
     final results = await Future.wait([
       _userService.getUserProfile(widget.userId),
@@ -92,12 +92,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   void _navigateToRoute(Map<String, dynamic> routeData) {
     // Convert stored data back to LatLng
     final routePointsList = (routeData['routePoints'] as List?)?.map((p) {
-      return LatLng(p['lat'] as double, p['lng'] as double);
-    }).toList() ?? [];
+          return LatLng(p['lat'] as double, p['lng'] as double);
+        }).toList() ??
+        [];
 
     final waypointsList = (routeData['waypoints'] as List?)?.map((p) {
-      return LatLng(p['lat'] as double, p['lng'] as double);
-    }).toList() ?? [];
+          return LatLng(p['lat'] as double, p['lng'] as double);
+        }).toList() ??
+        [];
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -171,7 +173,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: CruizrTheme.surface,
-                              border: Border.all(color: CruizrTheme.border, width: 2),
+                              border: Border.all(
+                                  color: CruizrTheme.border, width: 2),
                               image: avatar != null
                                   ? DecorationImage(
                                       image: NetworkImage(avatar),
@@ -180,7 +183,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   : null,
                             ),
                             child: avatar == null
-                                ? const Icon(Icons.person, size: 48, color: Colors.grey)
+                                ? const Icon(Icons.person,
+                                    size: 48, color: Colors.grey)
                                 : null,
                           ),
                           const SizedBox(height: 16),
@@ -205,7 +209,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                              const Icon(Icons.location_on,
+                                  size: 16, color: Colors.grey),
                               const SizedBox(width: 4),
                               Text(
                                 location,
@@ -216,20 +221,69 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               ),
                             ],
                           ),
-                          
+
                           const SizedBox(height: 24),
 
-                          // Stats Row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildStatItem('Followers', _followCounts['followers'] ?? 0),
-                              Container(width: 1, height: 30, color: Colors.grey[300], margin: const EdgeInsets.symmetric(horizontal: 24)),
-                              _buildStatItem('Following', _followCounts['following'] ?? 0),
-                              Container(width: 1, height: 30, color: Colors.grey[300], margin: const EdgeInsets.symmetric(horizontal: 24)),
-                              _buildStatItem('Routes', _userRoutes.length),
-                            ],
-                          ),
+                          // Stats Row (Hidden if private)
+                          if (_userProfile?['profileVisibility'] == 'private' &&
+                              !_isMe) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 20, horizontal: 16),
+                              margin: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: CruizrTheme.surface,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.lock_outline,
+                                      size: 32,
+                                      color: CruizrTheme.textSecondary),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    "This account is private",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: CruizrTheme.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    "Follow this user to see their activity",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: CruizrTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            // Stats Row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildStatItem('Followers',
+                                    _followCounts['followers'] ?? 0),
+                                Container(
+                                    width: 1,
+                                    height: 30,
+                                    color: Colors.grey[300],
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 24)),
+                                _buildStatItem('Following',
+                                    _followCounts['following'] ?? 0),
+                                Container(
+                                    width: 1,
+                                    height: 30,
+                                    color: Colors.grey[300],
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 24)),
+                                _buildStatItem('Routes', _userRoutes.length),
+                              ],
+                            ),
+                          ],
 
                           const SizedBox(height: 24),
 
@@ -240,12 +294,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               child: ElevatedButton(
                                 onPressed: _toggleFollow,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _isFollowing ? Colors.white : CruizrTheme.accentPink,
-                                  foregroundColor: _isFollowing ? CruizrTheme.accentPink : Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  backgroundColor: _isFollowing
+                                      ? Colors.white
+                                      : CruizrTheme.accentPink,
+                                  foregroundColor: _isFollowing
+                                      ? CruizrTheme.accentPink
+                                      : Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30),
-                                    side: BorderSide(color: CruizrTheme.accentPink),
+                                    side: BorderSide(
+                                        color: CruizrTheme.accentPink),
                                   ),
                                   elevation: _isFollowing ? 0 : 2,
                                 ),
@@ -258,30 +318,33 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 ),
                               ),
                             ),
-                          
-                          const SizedBox(height: 32),
-                          
+
                           // Section Title
-                          const Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'Created Routes',
-                              style: TextStyle(
-                                fontFamily: 'Playfair Display',
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                fontStyle: FontStyle.italic,
+                          if (_userProfile?['profileVisibility'] != 'private' ||
+                              _isMe) ...[
+                            const SizedBox(height: 32),
+                            const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Created Routes',
+                                style: TextStyle(
+                                  fontFamily: 'Playfair Display',
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
+                            const SizedBox(height: 16),
+                          ],
                         ],
                       ),
                     ),
                   ),
 
                   // Routes List
-                  if (_userRoutes.isEmpty)
+                  if ((_userProfile?['profileVisibility'] != 'private' ||
+                          _isMe) &&
+                      _userRoutes.isEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.all(32.0),
@@ -293,13 +356,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                       ),
                     )
-                  else
+                  else if (_userProfile?['profileVisibility'] != 'private' ||
+                      _isMe)
                     SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           final route = _userRoutes[index];
                           return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 10),
                             child: RouteCard(
                               route: route,
                               routeId: route['id'],
@@ -311,7 +376,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         childCount: _userRoutes.length,
                       ),
                     ),
-                    
+
                   const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
                 ],
               ),

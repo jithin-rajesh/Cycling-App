@@ -11,9 +11,10 @@ class CommunityScreen extends StatefulWidget {
   State<CommunityScreen> createState() => _CommunityScreenState();
 }
 
-class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProviderStateMixin {
+class _CommunityScreenState extends State<CommunityScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   // Leaderboard State
   String _selectedMetric = 'distance'; // 'distance' or 'calories'
   List<Map<String, dynamic>> _leaderboard = [];
@@ -25,7 +26,7 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
     _tabController = TabController(length: 2, vsync: this);
     _loadLeaderboard();
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -69,30 +70,30 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                   const Text(
+                  const Text(
                     'Community',
                     style: TextStyle(
                       fontFamily: 'Playfair Display',
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF5D4037),
-                      fontStyle: FontStyle.italic,
                     ),
                   ),
                   Container(
-                    width: 40, 
+                    width: 40,
                     height: 40,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
-                      border: Border.all(color: CruizrTheme.accentPink, width: 2),
+                      border:
+                          Border.all(color: CruizrTheme.accentPink, width: 2),
                     ),
                     child: const Icon(Icons.person, color: Colors.grey),
                   ),
                 ],
               ),
             ),
-            
+
             // Tabs
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -100,7 +101,10 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(25),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4)),
                 ],
               ),
               child: TabBar(
@@ -151,7 +155,10 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
             color: Colors.white,
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4)),
             ],
           ),
           child: Row(
@@ -167,20 +174,24 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
         Expanded(
           child: _isLoadingLeaderboard
               ? const Center(child: CircularProgressIndicator())
-              : _leaderboard.isEmpty 
-                  ? Center(child: Text("No community activity yet.\nBe the first!", textAlign: TextAlign.center, style: TextStyle(color: CruizrTheme.textSecondary)))
+              : _leaderboard.isEmpty
+                  ? Center(
+                      child: Text("No community activity yet.\nBe the first!",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: CruizrTheme.textSecondary)))
                   : ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  itemCount: _leaderboard.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final user = _leaderboard[index];
-                    final isMe = user['isMe'] == true;
-                    return _buildUserRow(index + 1, user, isMe: isMe);
-                  },
-                ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 8),
+                      itemCount: _leaderboard.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final user = _leaderboard[index];
+                        final isMe = user['isMe'] == true;
+                        return _buildUserRow(index + 1, user, isMe: isMe);
+                      },
+                    ),
         ),
-        
+
         // "Your Rank" Sticky Bar (if you are in the list)
         if (!_isLoadingLeaderboard && myData != null)
           Container(
@@ -188,18 +199,26 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -5)),
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5)),
               ],
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(32)),
             ),
             child: Column(
               children: [
                 const Text(
                   "Your Rank",
-                  style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                _buildUserRow(myRankIndex + 1, myData, isMe: true, isSticky: true),
+                _buildUserRow(myRankIndex + 1, myData,
+                    isMe: true, isSticky: true),
               ],
             ),
           ),
@@ -231,7 +250,8 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildUserRow(int rank, Map<String, dynamic> user, {bool isMe = false, bool isSticky = false}) {
+  Widget _buildUserRow(int rank, Map<String, dynamic> user,
+      {bool isMe = false, bool isSticky = false}) {
     Color rankColor;
     if (rank == 1) {
       rankColor = const Color(0xFFFFD700); // Gold
@@ -265,9 +285,13 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         decoration: BoxDecoration(
-          color: isMe && !isSticky ? CruizrTheme.accentPink.withOpacity(0.1) : (isSticky ? Colors.white : Colors.white),
+          color: isMe && !isSticky
+              ? CruizrTheme.accentPink.withOpacity(0.1)
+              : (isSticky ? Colors.white : Colors.white),
           borderRadius: BorderRadius.circular(20),
-          border: isMe ? Border.all(color: CruizrTheme.accentPink.withOpacity(0.5)) : null,
+          border: isMe
+              ? Border.all(color: CruizrTheme.accentPink.withOpacity(0.5))
+              : null,
         ),
         child: Row(
           children: [
@@ -280,12 +304,11 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                   color: rankColor,
-                  fontStyle: FontStyle.italic,
                 ),
               ),
             ),
             const SizedBox(width: 12),
-            
+
             // Avatar
             Container(
               width: 40,
@@ -300,7 +323,7 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
                       )
                     : null,
               ),
-              child: user['avatar'] == null 
+              child: user['avatar'] == null
                   ? const Icon(Icons.person, color: Colors.grey)
                   : null,
             ),

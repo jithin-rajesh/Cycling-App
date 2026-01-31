@@ -11,7 +11,7 @@ class ClubService {
   Future<List<ClubModel>> getClubs() async {
     // If no clubs exist, we'll create some generic ones (in a real app, this would be admin side)
     final snapshot = await _firestore.collection('clubs').get();
-    
+
     if (snapshot.docs.isEmpty) {
       await _seedClubs();
       return getClubs();
@@ -25,29 +25,35 @@ class ClubService {
       ClubModel(
         id: 'relaxed_riders',
         name: 'Relaxed Riders',
-        description: 'For those who enjoy the journey more than the speed. Join us for scenic rides and good vibes.',
-        imageUrl: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+        description:
+            'For those who enjoy the journey more than the speed. Join us for scenic rides and good vibes.',
+        imageUrl:
+            'https://images.unsplash.com/photo-1541625602330-2277a4c46182?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
         memberCount: 120,
       ),
       ClubModel(
         id: 'weekend_warriors',
         name: 'Weekend Warriors',
-        description: 'We crush miles on Saturdays and Sundays. Join the challenge!',
-        imageUrl: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+        description:
+            'We crush miles on Saturdays and Sundays. Join the challenge!',
+        imageUrl:
+            'https://images.unsplash.com/photo-1517649763962-0c623066013b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
         memberCount: 340,
       ),
       ClubModel(
         id: 'elite_cyclists',
         name: 'Elite Cyclists',
         description: 'High performance training club. Push your limits.',
-        imageUrl: 'https://images.unsplash.com/photo-1558556209-760775d5069b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+        imageUrl:
+            'https://images.unsplash.com/photo-1558556209-760775d5069b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
         memberCount: 85,
       ),
       ClubModel(
         id: 'morning_joggers',
         name: 'Morning Joggers',
         description: 'Start your day with a run. Sunrise chasers welcome.',
-        imageUrl: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+        imageUrl:
+            'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
         memberCount: 200,
       ),
     ];
@@ -70,7 +76,7 @@ class ClubService {
         .collection('members')
         .doc(user.uid)
         .get();
-        
+
     return doc.exists;
   }
 
@@ -80,9 +86,13 @@ class ClubService {
     if (user == null) return;
 
     final batch = _firestore.batch();
-    
+
     // Add to members subcollection
-    final memberRef = _firestore.collection('clubs').doc(clubId).collection('members').doc(user.uid);
+    final memberRef = _firestore
+        .collection('clubs')
+        .doc(clubId)
+        .collection('members')
+        .doc(user.uid);
     batch.set(memberRef, {
       'joinedAt': FieldValue.serverTimestamp(),
     });
@@ -92,7 +102,7 @@ class ClubService {
     batch.update(clubRef, {
       'memberCount': FieldValue.increment(1),
     });
-    
+
     // Add to user's joined clubs (optional, for quick access)
     // batch.set(_firestore.collection('users').doc(user.uid).collection('joinedClubs').doc(clubId), {});
 
@@ -105,9 +115,13 @@ class ClubService {
     if (user == null) return;
 
     final batch = _firestore.batch();
-    
+
     // Remove from members
-    final memberRef = _firestore.collection('clubs').doc(clubId).collection('members').doc(user.uid);
+    final memberRef = _firestore
+        .collection('clubs')
+        .doc(clubId)
+        .collection('members')
+        .doc(user.uid);
     batch.delete(memberRef);
 
     // Decrement member count
@@ -128,12 +142,15 @@ class ClubService {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) => ClubPostModel.fromMap(doc.data(), doc.id)).toList();
-        });
+      return snapshot.docs
+          .map((doc) => ClubPostModel.fromMap(doc.data(), doc.id))
+          .toList();
+    });
   }
 
   // Create Post
-  Future<void> createPost(String clubId, String description, String? imageUrl, [String? activityId]) async {
+  Future<void> createPost(String clubId, String description, String? imageUrl,
+      [String? activityId]) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
