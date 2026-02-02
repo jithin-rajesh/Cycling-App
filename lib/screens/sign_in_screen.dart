@@ -3,6 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../theme/app_theme.dart';
 import 'sign_up_screen.dart';
+import 'main_navigation_screen.dart';
+import 'profile_setup_screen.dart';
+import '../services/user_service.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -51,10 +54,14 @@ class _SignInScreenState extends State<SignInScreen>
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      
+      if (mounted && credential.user != null) {
+        await _handleAuthSuccess(credential.user!);
+      }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -87,7 +94,12 @@ class _SignInScreenState extends State<SignInScreen>
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
-        await FirebaseAuth.instance.signInWithCredential(credential);
+        final userCredential =
+            await FirebaseAuth.instance.signInWithCredential(credential);
+
+        if (mounted && userCredential.user != null) {
+          await _handleAuthSuccess(userCredential.user!);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -101,6 +113,27 @@ class _SignInScreenState extends State<SignInScreen>
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _handleAuthSuccess(User user) async {
+    // Check if user has a profile
+    final userDoc = await UserService().getUserProfile(user.uid);
+
+    if (!mounted) return;
+
+    if (userDoc != null) {
+      // Profile exists, go to home
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+        (route) => false,
+      );
+    } else {
+      // Profile missing (new Google user), go to setup
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),
+        (route) => false,
+      );
     }
   }
 

@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/club_model.dart';
+import '../models/club_model.dart';
 import '../models/club_post_model.dart';
+import '../models/club_message_model.dart';
 
 class ClubService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -176,5 +178,82 @@ class ClubService {
         .doc(clubId)
         .collection('posts')
         .add(post);
+  }
+
+  // --- Chat Functionality ---
+
+  // Send Message
+  Future<void> sendMessage(String clubId, String text) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    final userData = userDoc.data();
+    final userName = userData?['preferredName'] ?? user.displayName ?? 'User';
+    final userAvatar = userData?['photoUrl'] ?? '';
+
+    final message = {
+      'senderId': user.uid,
+      'senderName': userName,
+      'senderAvatar': userAvatar,
+      'text': text,
+      'timestamp': FieldValue.serverTimestamp(),
+      'reactions': {},
+    };
+
+    await _firestore
+        .collection('clubs')
+        .doc(clubId)
+        .collection('messages')
+        .add(message);
+  }
+
+  // Get Messages Stream
+  Stream<List<ClubMessageModel>> getClubMessages(String clubId) {
+    return _firestore
+        .collection('clubs')
+        .doc(clubId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => ClubMessageModel.fromMap(doc.data(), doc.id))
+          .toList();
+    });
+  }
+
+  // Toggle Reaction
+  Future<void> toggleReaction(
+      String clubId, String messageId, String emoji) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final docRef = _firestore
+        .collection('clubs')
+        .doc(clubId)
+        .collection('messages')
+        .doc(messageId);
+
+    final docSnapshot = await docRef.get();
+    if (!docSnapshot.exists) return;
+
+    final data = docSnapshot.data() as Map<String, dynamic>;
+    final reactions = Map<String, dynamic>.from(data['reactions'] ?? {});
+    final userList = List<String>.from(reactions[emoji] ?? []);
+
+    if (userList.contains(user.uid)) {
+      userList.remove(user.uid);
+      if (userList.isEmpty) {
+        reactions.remove(emoji);
+      } else {
+        reactions[emoji] = userList;
+      }
+    } else {
+      userList.add(user.uid);
+      reactions[emoji] = userList;
+    }
+
+    await docRef.update({'reactions': reactions});
   }
 }
