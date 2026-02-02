@@ -168,9 +168,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                           diameterRatio: 1.5,
                           squeeze: 1.0,
                           selectionOverlay:
-                              CupertinoPickerDefaultSelectionOverlay(
-                            background: Colors.transparent,
-                          ),
+                              const CupertinoPickerDefaultSelectionOverlay(),
                           onSelectedItemChanged: (index) =>
                               setState(() => _selectedTargetIndex = index),
                           children: _targets
@@ -192,9 +190,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                           diameterRatio: 1.5,
                           squeeze: 1.0,
                           selectionOverlay:
-                              CupertinoPickerDefaultSelectionOverlay(
-                            background: Colors.transparent,
-                          ),
+                              const CupertinoPickerDefaultSelectionOverlay(),
                           onSelectedItemChanged: (index) {
                             setState(() => _selectedMetricIndex = index);
                             _updateTargets();
@@ -223,9 +219,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                           diameterRatio: 1.5,
                           squeeze: 1.0,
                           selectionOverlay:
-                              CupertinoPickerDefaultSelectionOverlay(
-                            background: Colors.transparent,
-                          ),
+                              const CupertinoPickerDefaultSelectionOverlay(),
                           onSelectedItemChanged: (index) => setState(
                               () => _selectedDurationAmountIndex = index),
                           children: _durationAmounts
@@ -247,9 +241,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                           diameterRatio: 1.5,
                           squeeze: 1.0,
                           selectionOverlay:
-                              CupertinoPickerDefaultSelectionOverlay(
-                            background: Colors.transparent,
-                          ),
+                              const CupertinoPickerDefaultSelectionOverlay(),
                           onSelectedItemChanged: (index) => setState(
                               () => _selectedDurationUnitIndex = index),
                           children: _durationUnits
