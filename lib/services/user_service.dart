@@ -14,6 +14,7 @@ class UserService {
       }
       return null;
     } catch (e) {
+      // ignore: avoid_print
       print('Error fetching user profile: $e');
       return null;
     }
@@ -215,12 +216,28 @@ class UserService {
 
       // Client-side sort
       docs.sort((a, b) {
-        final aDate = (a['endDate'] as Timestamp).toDate();
-        final bDate = (b['endDate'] as Timestamp).toDate();
-        return aDate.compareTo(bDate);
+        // Sort by startDate descending (newest first)
+        final aDate =
+            (a['startDate'] as Timestamp?)?.toDate() ?? DateTime(2000);
+        final bDate =
+            (b['startDate'] as Timestamp?)?.toDate() ?? DateTime(2000);
+        return bDate.compareTo(aDate);
       });
 
       return docs;
     });
+  }
+
+  // Delete a goal
+  Future<void> deleteGoal(String goalId) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('goals')
+        .doc(goalId)
+        .delete();
   }
 }

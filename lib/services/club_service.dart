@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/club_model.dart';
-import '../models/club_model.dart';
 import '../models/club_post_model.dart';
 import '../models/club_message_model.dart';
 

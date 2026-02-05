@@ -91,3 +91,69 @@ exports.getDirections = onCall(
             throw new HttpsError("internal", error.message);
         }
     });
+
+/**
+ * Cloud Function proxy for Google Places API (Nearby Search).
+ * This bypasses CORS restrictions for web clients.
+ */
+exports.getNearbyPlaces = onCall(
+    {
+        invoker: "public",
+        cors: true,
+    },
+    async (request) => {
+        try {
+            const { location, radius, type } = request.data;
+
+            // Validate required parameters
+            if (!location) {
+                throw new HttpsError(
+                    "invalid-argument",
+                    "Location is required"
+                );
+            }
+
+            // Get API key from environment
+            const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+            if (!apiKey) {
+                throw new HttpsError(
+                    "failed-precondition",
+                    "Google Maps API key not configured"
+                );
+            }
+
+            // Build the Places API URL
+            let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?` +
+                `location=${encodeURIComponent(location)}` +
+                `&radius=${radius || 5000}` +
+                `&key=${apiKey}`;
+
+            if (type) {
+                url += `&type=${encodeURIComponent(type)}`;
+            }
+
+            console.log(`Fetching nearby places: location=${location}, type=${type}, radius=${radius || 5000}`);
+
+            // Make the request to Google Places API
+            const response = await fetch(url);
+            const responseData = await response.json();
+
+            if (responseData.status === "OK" || responseData.status === "ZERO_RESULTS") {
+                return {
+                    success: true,
+                    results: responseData.results || [],
+                };
+            }
+
+            console.error("Places API error:", responseData.status, responseData.error_message);
+            return {
+                success: false,
+                error: responseData.error_message || responseData.status,
+            };
+        } catch (error) {
+            console.error("getNearbyPlaces error:", error);
+            throw new HttpsError("internal", error.message);
+        }
+    });
+

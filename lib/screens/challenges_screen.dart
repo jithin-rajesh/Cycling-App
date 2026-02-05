@@ -5,6 +5,8 @@ import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/user_service.dart';
 import 'challenge_routes_screen.dart';
+import 'main_navigation_screen.dart';
+import '../widgets/goal_fly_animation.dart';
 
 class ChallengesScreen extends StatefulWidget {
   const ChallengesScreen({super.key});
@@ -25,6 +27,9 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
   final List<String> _durationUnits = ['Day', 'Week', 'Month'];
   final List<String> _durationAmounts =
       List.generate(100, (index) => '${index + 1}');
+
+  // GlobalKey for the goal picker to get its position for animation
+  final GlobalKey _goalPickerKey = GlobalKey();
 
   // Scroll Controllers for manual handling
   late FixedExtentScrollController _targetController;
@@ -85,6 +90,47 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     super.dispose();
   }
 
+  /// Triggers the fly animation from goal picker to home icon
+  void _triggerGoalFlyAnimation(String goalText) {
+    // Get the goal picker's position
+    final goalPickerContext = _goalPickerKey.currentContext;
+    if (goalPickerContext == null) return;
+
+    final goalPickerBox = goalPickerContext.findRenderObject() as RenderBox;
+    final goalPickerPosition = goalPickerBox.localToGlobal(Offset.zero);
+    final goalPickerSize = goalPickerBox.size;
+
+    // Create the start rect (center of goal picker)
+    final startRect = Rect.fromLTWH(
+      goalPickerPosition.dx,
+      goalPickerPosition.dy,
+      goalPickerSize.width,
+      goalPickerSize.height,
+    );
+
+    // Get the home icon's position
+    final homeIconContext = MainNavigationScreen.homeIconKey.currentContext;
+    if (homeIconContext == null) return;
+
+    final homeIconBox = homeIconContext.findRenderObject() as RenderBox;
+    final homeIconPosition = homeIconBox.localToGlobal(Offset.zero);
+    final homeIconSize = homeIconBox.size;
+
+    // Calculate center of home icon
+    final endPosition = Offset(
+      homeIconPosition.dx + homeIconSize.width / 2,
+      homeIconPosition.dy + homeIconSize.height / 2,
+    );
+
+    // Trigger the animation
+    GoalFlyAnimation.show(
+      context: context,
+      startRect: startRect,
+      endPosition: endPosition,
+      goalText: goalText,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -137,6 +183,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
               _buildSectionTitle('Set Your Goal'),
               const SizedBox(height: 16),
               Container(
+                key: _goalPickerKey,
                 height: 200,
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -278,6 +325,11 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                         durationUnit: durationUnit,
                       );
                       if (context.mounted) {
+                        // Trigger fly animation
+                        _triggerGoalFlyAnimation(
+                          '$target $metric in $durationAmount ${durationUnit.toLowerCase()}${durationAmount > 1 ? 's' : ''}',
+                        );
+
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(

@@ -5,6 +5,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../theme/app_theme.dart';
+import '../models/poi_model.dart';
+import '../services/poi_service.dart';
+import '../widgets/poi_filter_bar.dart';
+import '../widgets/poi_detail_sheet.dart';
+import '../utils/poi_marker_icons.dart';
 
 /// Screen for following a pre-defined route with live tracking.
 class FollowRouteScreen extends StatefulWidget {
@@ -32,20 +37,30 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
   Position? _currentPosition;
   BitmapDescriptor? _locationMarkerIcon;
   StreamSubscription<Position>? _positionStreamSubscription;
-  
+
   // Tracking state
   bool _isTracking = false;
   bool _isPaused = false;
   final List<LatLng> _traveledPath = [];
-  
+
   // Stats
   double _distanceTraveled = 0.0;
   Duration _elapsedTime = Duration.zero;
   Timer? _timer;
-  
+
   // Markers and polylines
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
+
+  // POI state
+  final POIService _poiService = POIService();
+  final Set<POICategory> _activePOICategories = {};
+  final Set<Marker> _poiMarkers = {};
+  List<POI> _currentPOIs = [];
+  bool _showFavorites = false;
+  Timer? _poiFetchDebounce;
+  LatLng? _lastPOIFetchCenter;
+  bool _showSearchHereButton = false;
 
   // Custom map style
   static const String _mapStyle = '''
@@ -67,12 +82,18 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
     super.initState();
     _initLocationMarker();
     _setupRouteDisplay();
+    _initPOIMarkers();
+  }
+
+  Future<void> _initPOIMarkers() async {
+    await POIMarkerIcons.initialize();
   }
 
   @override
   void dispose() {
     _positionStreamSubscription?.cancel();
     _timer?.cancel();
+    _poiFetchDebounce?.cancel();
     super.dispose();
   }
 
@@ -114,32 +135,36 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
     const double borderWidth = 4;
     const double centerX = totalWidth / 2;
     const double centerY = circleSize / 2 + 2;
-    
+
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    
+
     final shadowPaint = Paint()
       ..color = Colors.black.withValues(alpha: 0.25)
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-    
+
     final whitePaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
-    
+
     final pinkPaint = Paint()
       ..color = CruizrTheme.accentPink
       ..style = PaintingStyle.fill;
-    
+
     // Draw shadow
     final shadowTipPath = Path();
-    shadowTipPath.moveTo(centerX - 8 + shadowOffset, centerY + circleSize / 2 - 6 + shadowOffset);
-    shadowTipPath.lineTo(centerX + 8 + shadowOffset, centerY + circleSize / 2 - 6 + shadowOffset);
-    shadowTipPath.lineTo(centerX + shadowOffset, centerY + tipHeight + circleSize / 2 - 10 + shadowOffset);
+    shadowTipPath.moveTo(centerX - 8 + shadowOffset,
+        centerY + circleSize / 2 - 6 + shadowOffset);
+    shadowTipPath.lineTo(centerX + 8 + shadowOffset,
+        centerY + circleSize / 2 - 6 + shadowOffset);
+    shadowTipPath.lineTo(centerX + shadowOffset,
+        centerY + tipHeight + circleSize / 2 - 10 + shadowOffset);
     shadowTipPath.close();
     canvas.drawPath(shadowTipPath, shadowPaint);
-    canvas.drawCircle(Offset(centerX + shadowOffset, centerY + shadowOffset), circleSize / 2, shadowPaint);
-    
+    canvas.drawCircle(Offset(centerX + shadowOffset, centerY + shadowOffset),
+        circleSize / 2, shadowPaint);
+
     // Draw marker
     final tipPath = Path();
     tipPath.moveTo(centerX - 8, centerY + circleSize / 2 - 6);
@@ -148,12 +173,14 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
     tipPath.close();
     canvas.drawPath(tipPath, whitePaint);
     canvas.drawCircle(Offset(centerX, centerY), circleSize / 2, whitePaint);
-    canvas.drawCircle(Offset(centerX, centerY), circleSize / 2 - borderWidth, pinkPaint);
-    
+    canvas.drawCircle(
+        Offset(centerX, centerY), circleSize / 2 - borderWidth, pinkPaint);
+
     final picture = recorder.endRecording();
-    final image = await picture.toImage(totalWidth.toInt(), totalHeight.toInt());
+    final image =
+        await picture.toImage(totalWidth.toInt(), totalHeight.toInt());
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    
+
     return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
   }
 
@@ -171,13 +198,13 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
     Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
-    
+
     setState(() {
       _currentPosition = position;
     });
-    
+
     _updateLocationMarker();
-    
+
     // Center on route start
     if (widget.routePoints.isNotEmpty) {
       _mapController?.animateCamera(
@@ -215,7 +242,8 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
         _markers.add(
           Marker(
             markerId: const MarkerId('current_location'),
-            position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            position:
+                LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
             icon: _locationMarkerIcon!,
             anchor: const Offset(0.5, 1.0),
             zIndexInt: 999,
@@ -250,13 +278,15 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
       if (_isPaused) return;
 
       final newPoint = LatLng(position.latitude, position.longitude);
-      
+
       // Calculate distance from last point
       if (_traveledPath.isNotEmpty) {
         final lastPoint = _traveledPath.last;
         final distance = Geolocator.distanceBetween(
-          lastPoint.latitude, lastPoint.longitude,
-          newPoint.latitude, newPoint.longitude,
+          lastPoint.latitude,
+          lastPoint.longitude,
+          newPoint.latitude,
+          newPoint.longitude,
         );
         _distanceTraveled += distance / 1000; // Convert to km
       }
@@ -316,9 +346,11 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildSummaryRow('Distance', '${_distanceTraveled.toStringAsFixed(2)} km'),
+            _buildSummaryRow(
+                'Distance', '${_distanceTraveled.toStringAsFixed(2)} km'),
             _buildSummaryRow('Time', _formatDuration(_elapsedTime)),
-            _buildSummaryRow('Planned', '${widget.distanceKm.toStringAsFixed(1)} km'),
+            _buildSummaryRow(
+                'Planned', '${widget.distanceKm.toStringAsFixed(1)} km'),
           ],
         ),
         actions: [
@@ -327,7 +359,8 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
               Navigator.of(context).pop();
               Navigator.of(context).pop();
             },
-            child: Text('Done', style: TextStyle(color: CruizrTheme.accentPink)),
+            child:
+                Text('Done', style: TextStyle(color: CruizrTheme.accentPink)),
           ),
         ],
       ),
@@ -357,6 +390,143 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
     // Style is now handled by GoogleMap widget style parameter
   }
 
+  void _onCameraIdle() {
+    if (_activePOICategories.isNotEmpty || _showFavorites) {
+      setState(() {
+        _showSearchHereButton = true;
+      });
+    }
+  }
+
+  Future<void> _fetchPOIs({bool force = false}) async {
+    setState(() {
+      _showSearchHereButton = false;
+    });
+
+    if (_activePOICategories.isEmpty && !_showFavorites) {
+      setState(() {
+        _poiMarkers.clear();
+        _currentPOIs.clear();
+      });
+      return;
+    }
+
+    // Use current position or route center as center
+    final center = _currentPosition != null
+        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+        : widget.routePoints.isNotEmpty
+            ? widget.routePoints.first
+            : const LatLng(12.9716, 77.5946);
+
+    // Skip if center hasn't changed significantly
+    if (!force && _lastPOIFetchCenter != null) {
+      final distance = Geolocator.distanceBetween(
+        _lastPOIFetchCenter!.latitude,
+        _lastPOIFetchCenter!.longitude,
+        center.latitude,
+        center.longitude,
+      );
+      if (distance < 500) return;
+    }
+    _lastPOIFetchCenter = center;
+
+    // Show loading snackbar
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white)),
+              SizedBox(width: 12),
+              Text('Loading nearby places...'),
+            ],
+          ),
+          duration: Duration(seconds: 10),
+        ),
+      );
+    }
+
+    final pois = await _poiService.searchNearbyPOIs(
+      center: center,
+      categories: _activePOICategories,
+    );
+
+    List<POI> allPOIs = List.from(pois);
+    if (_showFavorites) {
+      final favorites = await _poiService.getFavorites();
+      allPOIs.addAll(favorites);
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    setState(() {
+      _currentPOIs = allPOIs;
+      _poiMarkers.clear();
+      for (final poi in allPOIs) {
+        _poiMarkers.add(
+          Marker(
+            markerId: MarkerId('poi_${poi.placeId}'),
+            position: poi.location,
+            icon: POIMarkerIcons.getIcon(poi.category),
+            onTap: () => _showPOIDetails(poi),
+          ),
+        );
+      }
+    });
+  }
+
+  void _showPOIDetails(POI poi) {
+    POIDetailSheet.show(
+      context,
+      poi: poi,
+      onFavoriteChanged: () => _fetchPOIs(force: true),
+    );
+  }
+
+  void _togglePOICategory(POICategory category) {
+    setState(() {
+      if (_activePOICategories.contains(category)) {
+        _activePOICategories.remove(category);
+      } else {
+        _activePOICategories.add(category);
+      }
+      _showSearchHereButton = true;
+      _updateVisibleMarkers();
+    });
+  }
+
+  void _toggleFavorites() {
+    setState(() {
+      _showFavorites = !_showFavorites;
+      if (_showFavorites) {
+        _showSearchHereButton = true;
+      }
+    });
+    _fetchPOIs(force: true);
+  }
+
+  void _updateVisibleMarkers() {
+    _poiMarkers.clear();
+    for (final poi in _currentPOIs) {
+      if (_activePOICategories.contains(poi.category)) {
+        _poiMarkers.add(
+          Marker(
+            markerId: MarkerId('poi_${poi.placeId}'),
+            position: poi.location,
+            icon: POIMarkerIcons.getIcon(poi.category),
+            onTap: () => _showPOIDetails(poi),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -365,25 +535,80 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
         child: Column(
           children: [
             _buildHeader(),
+
+            // POI Filter Bar (hidden when tracking active)
+            if (!_isTracking)
+              POIFilterBar(
+                activeCategories: _activePOICategories,
+                onCategoryToggled: _togglePOICategory,
+                showFavorites: true,
+                onFavoritesToggled: _toggleFavorites,
+                favoritesActive: _showFavorites,
+              ),
+
+            if (!_isTracking) const SizedBox(height: 8),
+
             Expanded(
               child: Stack(
                 children: [
                   GoogleMap(
                     onMapCreated: _onMapCreated,
+                    onCameraIdle: _onCameraIdle,
                     initialCameraPosition: CameraPosition(
-                      target: widget.routePoints.isNotEmpty 
-                        ? widget.routePoints.first 
-                        : const LatLng(12.9716, 77.5946),
+                      target: widget.routePoints.isNotEmpty
+                          ? widget.routePoints.first
+                          : const LatLng(12.9716, 77.5946),
                       zoom: 14,
                     ),
                     style: _mapStyle,
-                    markers: _markers,
+                    markers: {..._markers, ..._poiMarkers},
                     polylines: _polylines,
                     myLocationEnabled: false,
                     myLocationButtonEnabled: false,
                     zoomControlsEnabled: false,
                     mapToolbarEnabled: false,
                   ),
+                  // Search here button for POIs
+                  if (_showSearchHereButton)
+                    Positioned(
+                      top: 16,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: PointerInterceptor(
+                          child: GestureDetector(
+                            onTap: _fetchPOIs,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: CruizrTheme.accentPink,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.search,
+                                      color: Colors.white, size: 18),
+                                  SizedBox(width: 6),
+                                  Text('Search this area',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   // Zoom controls - wrapped with PointerInterceptor
                   Positioned(
                     top: 16,
@@ -392,14 +617,17 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
                       child: Column(
                         children: [
                           _buildMapButton(Icons.add, () {
-                            _mapController?.animateCamera(CameraUpdate.zoomIn());
+                            _mapController
+                                ?.animateCamera(CameraUpdate.zoomIn());
                           }),
                           const SizedBox(height: 8),
                           _buildMapButton(Icons.remove, () {
-                            _mapController?.animateCamera(CameraUpdate.zoomOut());
+                            _mapController
+                                ?.animateCamera(CameraUpdate.zoomOut());
                           }),
                           const SizedBox(height: 8),
-                          _buildMapButton(Icons.my_location, _getCurrentLocation),
+                          _buildMapButton(
+                              Icons.my_location, _getCurrentLocation),
                         ],
                       ),
                     ),
@@ -465,7 +693,8 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
               Navigator.of(context).pop();
               Navigator.of(context).pop();
             },
-            child: Text('Stop', style: TextStyle(color: CruizrTheme.accentPink)),
+            child:
+                Text('Stop', style: TextStyle(color: CruizrTheme.accentPink)),
           ),
         ],
       ),
@@ -514,8 +743,10 @@ class _FollowRouteScreenState extends State<FollowRouteScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStat('Distance', '${_distanceTraveled.toStringAsFixed(2)} km'),
-          _buildStat('Elevation', '${widget.elevationGain.toStringAsFixed(0)} m'),
-          _buildStat('Remaining', '${(widget.distanceKm - _distanceTraveled).clamp(0, double.infinity).toStringAsFixed(1)} km'),
+          _buildStat(
+              'Elevation', '${widget.elevationGain.toStringAsFixed(0)} m'),
+          _buildStat('Remaining',
+              '${(widget.distanceKm - _distanceTraveled).clamp(0, double.infinity).toStringAsFixed(1)} km'),
         ],
       ),
     );

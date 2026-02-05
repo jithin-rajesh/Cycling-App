@@ -7,9 +7,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../theme/app_theme.dart';
 import '../models/activity_model.dart';
+import '../models/poi_model.dart';
 import '../services/activity_service.dart';
 import '../services/club_service.dart';
+import '../services/poi_service.dart';
 import '../widgets/create_post_sheet.dart';
+import '../widgets/poi_filter_bar.dart';
+import '../widgets/poi_detail_sheet.dart';
+import '../utils/poi_marker_icons.dart';
 import '../models/club_model.dart';
 
 class JustMoveScreen extends StatefulWidget {
@@ -40,6 +45,17 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
 
   Timer? _timer;
   StreamSubscription<Position>? _positionSubscription;
+
+  // POI state
+  final POIService _poiService = POIService();
+  final Set<POICategory> _activePOICategories = {};
+  final Set<Marker> _poiMarkers = {};
+  List<POI> _networkPOIs = [];
+  List<POI> _favoritePOIs = [];
+  bool _showFavorites = false;
+  Timer? _poiFetchDebounce;
+  LatLng? _lastPOIFetchCenter;
+  bool _showSearchHereButton = false;
 
   // Default camera position
   static const LatLng _defaultCenter = LatLng(12.9716, 77.5946);
@@ -174,6 +190,11 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
     super.initState();
     _checkPermissions();
     _initLocationMarker();
+    _initPOIMarkers();
+  }
+
+  Future<void> _initPOIMarkers() async {
+    await POIMarkerIcons.initialize();
   }
 
   Future<void> _initLocationMarker() async {
@@ -189,6 +210,7 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
   void dispose() {
     _timer?.cancel();
     _positionSubscription?.cancel();
+    _poiFetchDebounce?.cancel();
     // _mapController?.dispose(); // Not needed and causes Web errors
     super.dispose();
   }
@@ -535,6 +557,168 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
     }
   }
 
+  void _onCameraIdle() {
+    if (_activePOICategories.isNotEmpty) {
+      setState(() {
+        _showSearchHereButton = true;
+      });
+    }
+  }
+
+  Future<void> _fetchPOIs({bool force = false}) async {
+    setState(() {
+      _showSearchHereButton = false;
+    });
+
+    if (_activePOICategories.isEmpty) {
+      setState(() {
+        _networkPOIs.clear();
+        _updateAllMarkers();
+      });
+      return;
+    }
+
+    // Use current position as center
+    final center = _currentPosition != null
+        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+        : _defaultCenter;
+
+    // Skip if center hasn't changed significantly (unless forced)
+    if (!force && _lastPOIFetchCenter != null) {
+      final distance = Geolocator.distanceBetween(
+        _lastPOIFetchCenter!.latitude,
+        _lastPOIFetchCenter!.longitude,
+        center.latitude,
+        center.longitude,
+      );
+      if (distance < 500) return;
+    }
+    _lastPOIFetchCenter = center;
+
+    // Show loading snackbar
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white)),
+              SizedBox(width: 12),
+              Text('Loading nearby places...'),
+            ],
+          ),
+          duration: Duration(seconds: 2), // Shortened duration
+        ),
+      );
+    }
+
+    final pois = await _poiService.searchNearbyPOIs(
+      center: center,
+      categories: _activePOICategories,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    setState(() {
+      _networkPOIs = pois;
+      _updateAllMarkers();
+    });
+  }
+
+  void _showPOIDetails(POI poi) {
+    POIDetailSheet.show(
+      context,
+      poi: poi,
+      onFavoriteChanged: () {
+        // If favorites are shown, reload them to reflect changes immediately
+        if (_showFavorites) {
+          _loadFavorites();
+        }
+      },
+    );
+  }
+
+  void _togglePOICategory(POICategory category) {
+    setState(() {
+      if (_activePOICategories.contains(category)) {
+        _activePOICategories.remove(category);
+      } else {
+        _activePOICategories.add(category);
+      }
+      _showSearchHereButton = true;
+      _updateAllMarkers();
+    });
+  }
+
+  void _toggleFavorites() {
+    setState(() {
+      _showFavorites = !_showFavorites;
+    });
+    if (_showFavorites) {
+      _loadFavorites();
+    } else {
+      setState(() {
+        _favoritePOIs.clear();
+        _updateAllMarkers();
+      });
+    }
+  }
+
+  Future<void> _loadFavorites() async {
+    final favorites = await _poiService.getFavorites();
+    if (!mounted) return;
+    setState(() {
+      _favoritePOIs = favorites;
+      _updateAllMarkers();
+    });
+  }
+
+  void _updateAllMarkers() {
+    _poiMarkers.clear();
+
+    // Add Network POIs (filtered by active categories)
+    for (final poi in _networkPOIs) {
+      if (_activePOICategories.contains(poi.category)) {
+        _poiMarkers.add(
+          Marker(
+            markerId: MarkerId('poi_${poi.placeId}'),
+            position: poi.location,
+            icon: POIMarkerIcons.getIcon(poi.category),
+            onTap: () => _showPOIDetails(poi),
+          ),
+        );
+      }
+    }
+
+    // Add Favorites (Always show if enabled, overriding category filter if needed, or separate?)
+    // Usually favorites should just show up.
+    for (final poi in _favoritePOIs) {
+      // Use star icon/special marker for favorites? Or just category icon?
+      // User probably wants to see them distinctively?
+      // For now, let's use the category icon but maybe z-index higher.
+      // Or use the `favoriteIcon` from POIMarkerIcons if we want them yellow?
+      // Let's stick to category icon for now as requested "icons for stuff",
+      // but maybe we can overlay a star?
+      // The `POIMarkerIcons` doesn't have "fav" variant yet.
+      // Let's just add them. Duplicates are handled by Set<Marker> based on ID?
+      // MarkerId is 'poi_${placeId}'.
+      _poiMarkers.add(
+        Marker(
+          markerId: MarkerId('poi_${poi.placeId}'),
+          position: poi.location,
+          zIndex: 1.0, // Show above others
+          icon: POIMarkerIcons.getIcon(poi.category),
+          onTap: () => _showPOIDetails(poi),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -545,12 +729,25 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
             // Header
             _buildHeader(),
 
+            // POI Filter Bar (hidden when tracking active)
+            if (!_isTracking)
+              POIFilterBar(
+                activeCategories: _activePOICategories,
+                onCategoryToggled: _togglePOICategory,
+                showFavorites: true,
+                onFavoritesToggled: _toggleFavorites,
+                favoritesActive: _showFavorites,
+              ),
+
+            if (!_isTracking) const SizedBox(height: 8),
+
             // Map
             Expanded(
               child: Stack(
                 children: [
                   GoogleMap(
                     onMapCreated: _onMapCreated,
+                    onCameraIdle: _onCameraIdle,
                     initialCameraPosition: CameraPosition(
                       target: _currentPosition != null
                           ? LatLng(_currentPosition!.latitude,
@@ -559,12 +756,62 @@ class _JustMoveScreenState extends State<JustMoveScreen> {
                       zoom: 16,
                     ),
                     polylines: _polylines,
-                    markers: _markers,
+                    markers: {..._markers, ..._poiMarkers},
                     style: _mapStyle,
                     myLocationEnabled: false,
                     myLocationButtonEnabled: false,
                     zoomControlsEnabled: false,
                     mapToolbarEnabled: false,
+                  ),
+                  // Search here button for POIs
+                  Positioned(
+                    top: 16,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: IgnorePointer(
+                        ignoring: !_showSearchHereButton,
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 200),
+                          opacity: _showSearchHereButton ? 1.0 : 0.0,
+                          child: PointerInterceptor(
+                            intercepting: _showSearchHereButton,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _fetchPOIs(force: true),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: CruizrTheme.accentPink,
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.search,
+                                        color: Colors.white, size: 18),
+                                    SizedBox(width: 6),
+                                    Text('Search this area',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                   // Zoom controls
                   Positioned(

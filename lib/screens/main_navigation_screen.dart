@@ -15,6 +15,9 @@ import 'package:uni_links/uni_links.dart';
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
+  /// GlobalKey for the Home nav item, used by GoalFlyAnimation to find target position
+  static final GlobalKey homeIconKey = GlobalKey();
+
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
@@ -147,7 +150,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = _selectedIndex == index;
+    // Use GlobalKey for Home icon so GoalFlyAnimation can target it
+    final key = index == 0 ? MainNavigationScreen.homeIconKey : null;
     return InkWell(
+      key: key,
       onTap: () => _onItemTapped(index),
       borderRadius: BorderRadius.circular(16),
       child: Padding(

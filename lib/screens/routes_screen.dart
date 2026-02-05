@@ -1,14 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-import 'package:geolocator/geolocator.dart'; // Added back
+import 'package:geolocator/geolocator.dart';
 import '../services/strava_service.dart';
+import '../services/poi_service.dart';
+import '../models/poi_model.dart';
 import '../theme/app_theme.dart';
+import '../widgets/poi_filter_bar.dart';
+import '../widgets/poi_detail_sheet.dart';
+import '../utils/poi_marker_icons.dart';
 import 'follow_route_screen.dart';
 import '../widgets/route_card.dart';
-import 'challenges_screen.dart'; // Import ChallengesScreen
 
 class RoutesScreen extends StatefulWidget {
   const RoutesScreen({super.key});
@@ -26,6 +31,16 @@ class _RoutesScreenState extends State<RoutesScreen> {
   final Set<Polyline> _segmentPolylines = {};
   final Set<Marker> _segmentMarkers = {};
   static const LatLng _defaultCenter = LatLng(12.9716, 77.5946); // Bangalore
+
+  // POI state
+  final POIService _poiService = POIService();
+  final Set<POICategory> _activePOICategories = {};
+  final Set<Marker> _poiMarkers = {};
+  List<POI> _currentPOIs = [];
+  bool _showFavorites = false;
+  Timer? _poiFetchDebounce;
+  LatLng? _lastPOIFetchCenter;
+  bool _showSearchHereButton = false;
 
   // Custom map style (reuse from CreateRoute if possible, or simplified)
   static const String _mapStyle = '''
@@ -78,6 +93,22 @@ class _RoutesScreenState extends State<RoutesScreen> {
   }
 ]
 ''';
+
+  @override
+  void initState() {
+    super.initState();
+    _initPOIMarkers();
+  }
+
+  Future<void> _initPOIMarkers() async {
+    await POIMarkerIcons.initialize();
+  }
+
+  @override
+  void dispose() {
+    _poiFetchDebounce?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -237,46 +268,20 @@ class _RoutesScreenState extends State<RoutesScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF5D4037)),
-            onPressed: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              }
-            },
-          ),
-          const Text(
-            'Discover Routes',
-            style: TextStyle(
-              fontFamily: 'Playfair Display',
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D2D2D),
-            ),
-          ),
-
-          // "Challenges" Button
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const ChallengesScreen()),
-              );
-            },
+          Expanded(
             child: Text(
-              'Challenges',
-              style: TextStyle(
-                color: CruizrTheme.accentPink,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              'Discover Routes',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: CruizrTheme.primaryDark,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
           ),
+          // Buttons removed as requested
         ],
       ),
     );
@@ -325,37 +330,231 @@ class _RoutesScreenState extends State<RoutesScreen> {
   }
 
   Widget _buildSegmentsMap() {
-    return Stack(
+    return Column(
       children: [
-        GoogleMap(
-          initialCameraPosition: const CameraPosition(
-            target: _defaultCenter,
-            zoom: 12,
+        // POI Filter Bar
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: POIFilterBar(
+            activeCategories: _activePOICategories,
+            onCategoryToggled: _togglePOICategory,
+            showFavorites: true,
+            onFavoritesToggled: _toggleFavorites,
+            favoritesActive: _showFavorites,
           ),
-          onMapCreated: (controller) {
-            _mapController = controller;
-            _getUserLocation();
-          },
-          onCameraIdle: _fetchSegmentsInView,
-          style: _mapStyle,
-          myLocationEnabled: true,
-          myLocationButtonEnabled: false,
-          markers: _segmentMarkers,
-          polylines: _segmentPolylines,
         ),
-        Positioned(
-          top: 16,
-          right: 16,
-          child: FloatingActionButton(
-            heroTag: 'map_loc',
-            mini: true,
-            backgroundColor: CruizrTheme.surface,
-            onPressed: _getUserLocation,
-            child: const Icon(Icons.my_location, color: Colors.black),
+
+        Expanded(
+          child: Stack(
+            children: [
+              GoogleMap(
+                initialCameraPosition: const CameraPosition(
+                  target: _defaultCenter,
+                  zoom: 12,
+                ),
+                onMapCreated: (controller) {
+                  _mapController = controller;
+                  _getUserLocation();
+                },
+                onCameraIdle: _onCameraIdle,
+                style: _mapStyle,
+                myLocationEnabled: true,
+                myLocationButtonEnabled: false,
+                markers: {..._segmentMarkers, ..._poiMarkers},
+                polylines: _segmentPolylines,
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: FloatingActionButton(
+                  heroTag: 'map_loc',
+                  mini: true,
+                  backgroundColor: CruizrTheme.surface,
+                  onPressed: _getUserLocation,
+                  child: const Icon(Icons.my_location, color: Colors.black),
+                ),
+              ),
+              // Search here button for POIs
+              if (_showSearchHereButton)
+                Positioned(
+                  top: 60,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: _fetchPOIs,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: CruizrTheme.accentPink,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.search, color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text('Search this area',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],
     );
+  }
+
+  void _onCameraIdle() {
+    _fetchSegmentsInView();
+    if (_activePOICategories.isNotEmpty || _showFavorites) {
+      setState(() {
+        _showSearchHereButton = true;
+      });
+    }
+  }
+
+  Future<void> _fetchPOIs({bool force = false}) async {
+    setState(() {
+      _showSearchHereButton = false;
+    });
+
+    if (_activePOICategories.isEmpty && !_showFavorites) {
+      setState(() {
+        _poiMarkers.clear();
+        _currentPOIs.clear();
+      });
+      return;
+    }
+
+    final bounds = await _mapController?.getVisibleRegion();
+    if (bounds == null) return;
+
+    final center = LatLng(
+      (bounds.northeast.latitude + bounds.southwest.latitude) / 2,
+      (bounds.northeast.longitude + bounds.southwest.longitude) / 2,
+    );
+
+    if (!force && _lastPOIFetchCenter != null) {
+      final distance = Geolocator.distanceBetween(
+        _lastPOIFetchCenter!.latitude,
+        _lastPOIFetchCenter!.longitude,
+        center.latitude,
+        center.longitude,
+      );
+      if (distance < 500) return;
+    }
+    _lastPOIFetchCenter = center;
+
+    // Show loading snackbar
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white)),
+              SizedBox(width: 12),
+              Text('Loading nearby places...'),
+            ],
+          ),
+          duration: Duration(seconds: 10),
+        ),
+      );
+    }
+
+    final pois = await _poiService.searchNearbyPOIs(
+      center: center,
+      categories: _activePOICategories,
+    );
+
+    List<POI> allPOIs = List.from(pois);
+    if (_showFavorites) {
+      final favorites = await _poiService.getFavorites();
+      allPOIs.addAll(favorites);
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    setState(() {
+      _currentPOIs = allPOIs;
+      _poiMarkers.clear();
+      for (final poi in allPOIs) {
+        _poiMarkers.add(
+          Marker(
+            markerId: MarkerId('poi_${poi.placeId}'),
+            position: poi.location,
+            icon: POIMarkerIcons.getIcon(poi.category),
+            onTap: () => _showPOIDetails(poi),
+          ),
+        );
+      }
+    });
+  }
+
+  void _showPOIDetails(POI poi) {
+    POIDetailSheet.show(
+      context,
+      poi: poi,
+      onFavoriteChanged: () => _fetchPOIs(force: true),
+    );
+  }
+
+  void _togglePOICategory(POICategory category) {
+    setState(() {
+      if (_activePOICategories.contains(category)) {
+        _activePOICategories.remove(category);
+      } else {
+        _activePOICategories.add(category);
+      }
+      _showSearchHereButton = true;
+      _updateVisibleMarkers();
+    });
+  }
+
+  void _toggleFavorites() {
+    setState(() {
+      _showFavorites = !_showFavorites;
+      if (_showFavorites) {
+        _showSearchHereButton = true;
+      }
+    });
+    _fetchPOIs(force: true);
+  }
+
+  void _updateVisibleMarkers() {
+    _poiMarkers.clear();
+    for (final poi in _currentPOIs) {
+      if (_activePOICategories.contains(poi.category)) {
+        _poiMarkers.add(
+          Marker(
+            markerId: MarkerId('poi_${poi.placeId}'),
+            position: poi.location,
+            icon: POIMarkerIcons.getIcon(poi.category),
+            onTap: () => _showPOIDetails(poi),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _getUserLocation() async {

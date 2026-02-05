@@ -43,6 +43,7 @@ dependencies:
   path_provider: ^2.1.5
   screenshot: ^3.0.0
   flutter_image_compress: ^2.4.0
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:

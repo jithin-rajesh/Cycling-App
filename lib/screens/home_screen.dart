@@ -383,19 +383,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ],
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        height: 140, // Height for horizontal scrolling cards
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: goals.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: 12),
-                          itemBuilder: (context, index) {
-                            final goal = goals[index];
-                            return _buildActiveGoalCard(goal);
-                          },
-                        ),
-                      ),
+                      ActiveGoalsList(goals: goals),
                       const SizedBox(height: 32),
                     ],
                   );
@@ -552,8 +540,111 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
+}
 
-  Widget _buildActiveGoalCard(Map<String, dynamic> goal) {
+class ActiveGoalsList extends StatefulWidget {
+  final List<Map<String, dynamic>> goals;
+  const ActiveGoalsList({super.key, required this.goals});
+
+  @override
+  State<ActiveGoalsList> createState() => _ActiveGoalsListState();
+}
+
+class _ActiveGoalsListState extends State<ActiveGoalsList> {
+  late List<Map<String, dynamic>> _goals;
+
+  @override
+  void initState() {
+    super.initState();
+    _goals = List.from(widget.goals);
+  }
+
+  @override
+  void didUpdateWidget(ActiveGoalsList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.goals.length != _goals.length) {
+      _goals = List.from(widget.goals);
+    } else {
+      final newIds = widget.goals.map((e) => e['id']).toSet();
+      final currentIds = _goals.map((e) => e['id']).toSet();
+      if (!newIds.containsAll(currentIds)) {
+        _goals = List.from(widget.goals);
+      }
+    }
+  }
+
+  Future<void> _deleteGoal(String goalId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Goal?'),
+        content: const Text('Are you sure you want to remove this goal?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await UserService().deleteGoal(goalId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Goal deleted')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 140,
+      child: ReorderableListView.builder(
+        scrollDirection: Axis.horizontal,
+        onReorder: (oldIndex, newIndex) {
+          setState(() {
+            if (oldIndex < newIndex) {
+              newIndex -= 1;
+            }
+            final item = _goals.removeAt(oldIndex);
+            _goals.insert(newIndex, item);
+          });
+        },
+        proxyDecorator: (child, index, animation) {
+          return Material(
+            color: Colors.transparent,
+            child: Transform.scale(scale: 1.05, child: child),
+          );
+        },
+        itemCount: _goals.length,
+        itemBuilder: (context, index) {
+          final goal = _goals[index];
+          return Container(
+            key: ValueKey(goal['id']),
+            margin: const EdgeInsets.only(right: 12),
+            child: _buildGoalCard(goal),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGoalCard(Map<String, dynamic> goal) {
     if (!goal.containsKey('endDate')) return const SizedBox.shrink();
     final endDate = (goal['endDate'] as Timestamp).toDate();
     final daysLeft = endDate.difference(DateTime.now()).inDays;
@@ -574,54 +665,68 @@ class _HomeScreenState extends State<HomeScreen>
           )
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
         children: [
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: CruizrTheme.accentPink.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.flag_outlined,
-                    color: CruizrTheme.accentPink, size: 20),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: CruizrTheme.accentPink.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.flag_outlined,
+                        color: CruizrTheme.accentPink, size: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${goal['target']} ${goal['metric']}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '${goal['target']} ${goal['metric']}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16),
-                  overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 12),
+              Text(
+                'Goal: ${goal['durationLabel']}',
+                style:
+                    TextStyle(color: CruizrTheme.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                timeLeft,
+                style: const TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: CruizrTheme.background,
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(CruizrTheme.accentPink),
+                  minHeight: 6,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Goal: ${goal['durationLabel']}',
-            style: TextStyle(color: CruizrTheme.textSecondary, fontSize: 13),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            timeLeft,
-            style: const TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.w600,
-                fontSize: 13),
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value:
-                  progress, // Placeholder 0.0 for now until tracking implemented
-              backgroundColor: CruizrTheme.background,
-              valueColor: AlwaysStoppedAnimation<Color>(CruizrTheme.accentPink),
-              minHeight: 6,
+          Positioned(
+            top: -12,
+            right: -12,
+            child: IconButton(
+              icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+              onPressed: () => _deleteGoal(goal['id']),
+              splashRadius: 20,
             ),
           ),
         ],

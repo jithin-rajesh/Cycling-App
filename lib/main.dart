@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
 import 'theme/app_theme.dart';
 import 'screens/welcome_screen.dart';
@@ -34,6 +35,7 @@ class CruizrApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Cruizr',
+      scrollBehavior: AppScrollBehavior(),
       debugShowCheckedModeBanner: false,
       theme: CruizrTheme.themeData,
       home: const StravaCallbackWrapper(child: AuthGate()),
@@ -175,4 +177,12 @@ class AuthGate extends StatelessWidget {
       },
     );
   }
+}
+
+class AppScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+      };
 }
