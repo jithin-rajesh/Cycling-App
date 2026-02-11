@@ -1,0 +1,9 @@
+# Default ignore
+*
+
+# Whitelist
+!api/
+!public/
+!vercel.json
+!build/web/
+!.vercel/project.json

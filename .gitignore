@@ -72,3 +72,6 @@ lib/firebase_options.dart
 .vscode/launch.json
 
 lib/config
+
+agents
+.env*.local

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../theme/app_theme.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/user_service.dart';
+import '../services/coach_service.dart';
 import 'challenge_routes_screen.dart';
 import 'main_navigation_screen.dart';
 import '../widgets/goal_fly_animation.dart';
@@ -15,12 +17,13 @@ class ChallengesScreen extends StatefulWidget {
   State<ChallengesScreen> createState() => _ChallengesScreenState();
 }
 
-class _ChallengesScreenState extends State<ChallengesScreen> {
+class _ChallengesScreenState extends State<ChallengesScreen>
+    with TickerProviderStateMixin {
   // Goal Setter State
   int _selectedTargetIndex = 0;
   int _selectedMetricIndex = 0;
-  int _selectedDurationAmountIndex = 0; // Default to 1
-  int _selectedDurationUnitIndex = 1; // Default to Week
+  int _selectedDurationAmountIndex = 0;
+  int _selectedDurationUnitIndex = 1;
 
   List<String> _targets = [];
   final List<String> _metrics = ['km', 'miles', 'cal', 'steps'];
@@ -28,14 +31,25 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
   final List<String> _durationAmounts =
       List.generate(100, (index) => '${index + 1}');
 
-  // GlobalKey for the goal picker to get its position for animation
   final GlobalKey _goalPickerKey = GlobalKey();
 
-  // Scroll Controllers for manual handling
   late FixedExtentScrollController _targetController;
   late FixedExtentScrollController _metricController;
   late FixedExtentScrollController _durationAmountController;
   late FixedExtentScrollController _durationUnitController;
+
+  // AI Coach State
+  final TextEditingController _coachInputController = TextEditingController();
+  bool _isCoachLoading = false;
+  String _activeNode = ''; // "planner", "executor", "done", "error"
+  String _plannerOutput = '';
+  String _executorOutput = '';
+  String _errorMessage = '';
+  bool _showPlannerDetails = false;
+  StreamSubscription<CoachEvent>? _coachSubscription;
+
+  // Animation for the coach section
+  late AnimationController _pulseController;
 
   @override
   void initState() {
@@ -45,7 +59,12 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     _durationAmountController = FixedExtentScrollController();
     _durationUnitController =
         FixedExtentScrollController(initialItem: _selectedDurationUnitIndex);
-    _updateTargets(); // Initialize targets based on default metric
+    _updateTargets();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
   }
 
   void _updateTargets() {
@@ -53,7 +72,6 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     List<String> newTargets = [];
 
     if (metric == 'km' || metric == 'miles') {
-      // 1-25 (step 1), then 30-1000 (step 5)
       for (int i = 1; i <= 25; i++) {
         newTargets.add(i.toString());
       }
@@ -61,12 +79,10 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
         newTargets.add(i.toString());
       }
     } else if (metric == 'cal') {
-      // 100-10000 (step 50)
       for (int i = 100; i <= 10000; i += 50) {
         newTargets.add(i.toString());
       }
     } else if (metric == 'steps') {
-      // 1000-50000 (step 1000)
       for (int i = 1000; i <= 50000; i += 1000) {
         newTargets.add(i.toString());
       }
@@ -74,7 +90,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
 
     setState(() {
       _targets = newTargets;
-      _selectedTargetIndex = 0; // Reset selection
+      _selectedTargetIndex = 0;
       if (_targetController.hasClients) {
         _targetController.jumpToItem(0);
       }
@@ -87,12 +103,14 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     _metricController.dispose();
     _durationAmountController.dispose();
     _durationUnitController.dispose();
+    _coachInputController.dispose();
+    _coachSubscription?.cancel();
+    _pulseController.dispose();
     super.dispose();
   }
 
   /// Triggers the fly animation from goal picker to home icon
   void _triggerGoalFlyAnimation(String goalText) {
-    // Get the goal picker's position
     final goalPickerContext = _goalPickerKey.currentContext;
     if (goalPickerContext == null) return;
 
@@ -100,7 +118,6 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     final goalPickerPosition = goalPickerBox.localToGlobal(Offset.zero);
     final goalPickerSize = goalPickerBox.size;
 
-    // Create the start rect (center of goal picker)
     final startRect = Rect.fromLTWH(
       goalPickerPosition.dx,
       goalPickerPosition.dy,
@@ -108,7 +125,6 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
       goalPickerSize.height,
     );
 
-    // Get the home icon's position
     final homeIconContext = MainNavigationScreen.homeIconKey.currentContext;
     if (homeIconContext == null) return;
 
@@ -116,18 +132,92 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     final homeIconPosition = homeIconBox.localToGlobal(Offset.zero);
     final homeIconSize = homeIconBox.size;
 
-    // Calculate center of home icon
     final endPosition = Offset(
       homeIconPosition.dx + homeIconSize.width / 2,
       homeIconPosition.dy + homeIconSize.height / 2,
     );
 
-    // Trigger the animation
     GoalFlyAnimation.show(
       context: context,
       startRect: startRect,
       endPosition: endPosition,
       goalText: goalText,
+    );
+  }
+
+  /// Generate a coaching plan via the AI backend
+  void _generateCoachPlan(String query) {
+    if (query.trim().isEmpty) return;
+
+    setState(() {
+      _isCoachLoading = true;
+      _activeNode = 'planner';
+      _plannerOutput = '';
+      _executorOutput = '';
+      _errorMessage = '';
+      _showPlannerDetails = false;
+    });
+
+    _coachSubscription?.cancel();
+    _coachSubscription = CoachService.generatePlan(query).listen(
+      (event) {
+        if (!mounted) return;
+        setState(() {
+          switch (event.node) {
+            // Planner lifecycle
+            case 'planner_start':
+              _activeNode = 'planner';
+              break;
+            case 'planner_token':
+              _activeNode = 'planner';
+              _plannerOutput += event.token ?? '';
+              break;
+            case 'planner_done':
+              _activeNode = 'executor';
+              // Use full plan text if available, otherwise keep streamed text
+              if (event.plan != null && event.plan!.isNotEmpty) {
+                _plannerOutput = event.plan!;
+              }
+              break;
+
+            // Executor lifecycle
+            case 'executor_start':
+              _activeNode = 'executor';
+              break;
+            case 'executor_token':
+              _activeNode = 'executor';
+              _executorOutput += event.token ?? '';
+              break;
+            case 'executor_done':
+              _activeNode = 'done';
+              if (event.finalResponse != null &&
+                  event.finalResponse!.isNotEmpty) {
+                _executorOutput = event.finalResponse!;
+              }
+              _isCoachLoading = false;
+              break;
+
+            // Terminal states
+            case 'done':
+              _activeNode = 'done';
+              _isCoachLoading = false;
+              break;
+            case 'error':
+              _activeNode = 'error';
+              _errorMessage = event.status;
+              _isCoachLoading = false;
+              break;
+          }
+        });
+      },
+      onError: (e) {
+        if (!mounted) return;
+        setState(() {
+          _activeNode = 'error';
+          _errorMessage = e.toString();
+          _isCoachLoading = false;
+        });
+      },
     );
   }
 
@@ -159,24 +249,8 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Recommendations Section
-              _buildSectionTitle('Recommended for You'),
-              const SizedBox(height: 16),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildRecommendationCard('50km', 'in 20 days',
-                        Icons.directions_bike, Colors.blue),
-                    const SizedBox(width: 16),
-                    _buildRecommendationCard('10k cal', 'in 30 days',
-                        Icons.local_fire_department, Colors.orange),
-                    const SizedBox(width: 16),
-                    _buildRecommendationCard('Marathon', '42km run',
-                        Icons.directions_run, Colors.purple),
-                  ],
-                ),
-              ),
+              // AI Coach Section (replaces Recommended for You)
+              _buildCoachSection(),
               const SizedBox(height: 32),
 
               // Manual Goal Setter
@@ -205,7 +279,6 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                   ),
                   child: Row(
                     children: [
-                      // Target Values
                       Expanded(
                         flex: 2,
                         child: CupertinoPicker(
@@ -227,9 +300,8 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                               .toList(),
                         ),
                       ),
-                      // Metric (km, cal, etc)
                       Expanded(
-                        flex: 2, // Wider for metric
+                        flex: 2,
                         child: CupertinoPicker(
                           scrollController: _metricController,
                           itemExtent: 40,
@@ -256,7 +328,6 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                             style: TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 16)),
                       ),
-                      // Duration Amount (1, 2, 3...)
                       Expanded(
                         flex: 1,
                         child: CupertinoPicker(
@@ -278,7 +349,6 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                               .toList(),
                         ),
                       ),
-                      // Duration Unit (days, weeks)
                       Expanded(
                         flex: 2,
                         child: CupertinoPicker(
@@ -325,7 +395,6 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                         durationUnit: durationUnit,
                       );
                       if (context.mounted) {
-                        // Trigger fly animation
                         _triggerGoalFlyAnimation(
                           '$target $metric in $durationAmount ${durationUnit.toLowerCase()}${durationAmount > 1 ? 's' : ''}',
                         );
@@ -371,7 +440,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                 description:
                     'Long distance routes with steady elevation to build stamina.',
                 icon: Icons.timer_outlined,
-                color: const Color(0xFF4CAF50), // Green for endurance
+                color: const Color(0xFF4CAF50),
               ),
               const SizedBox(height: 16),
               _buildChallengeCard(
@@ -380,12 +449,487 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                 description:
                     'Flat, fast routes designed for high-intensity interval training.',
                 icon: Icons.speed_outlined,
-                color: const Color(0xFFFF5722), // Orange for speed
+                color: const Color(0xFFFF5722),
               ),
-              // Add padding at bottom for nav bar
               const SizedBox(height: 80),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // ── AI Coach Section ────────────────────────────────────────────────────
+  Widget _buildCoachSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section header with badge
+        Row(
+          children: [
+            _buildSectionTitle('AI Coach'),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: CruizrTheme.accentPink.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Beta',
+                style: GoogleFonts.lato(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: CruizrTheme.accentPink,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Kimi plans your strategy, Mistral builds the schedule',
+          style: GoogleFonts.lato(
+            fontSize: 12,
+            color: CruizrTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Prompt chips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildPromptChip('Plan my 100km week'),
+              const SizedBox(width: 8),
+              _buildPromptChip('4-week race prep'),
+              const SizedBox(width: 8),
+              _buildPromptChip('Weekend only 60km'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Input card
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+                child: TextField(
+                  controller: _coachInputController,
+                  maxLines: 2,
+                  minLines: 1,
+                  style: GoogleFonts.lato(
+                    fontSize: 14,
+                    color: CruizrTheme.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Describe your training goal...',
+                    hintStyle: GoogleFonts.lato(
+                      fontSize: 14,
+                      color: CruizrTheme.textSecondary.withValues(alpha: 0.6),
+                    ),
+                    border: InputBorder.none,
+                    filled: false,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                child: Row(
+                  children: [
+                    // Model indicators
+                    _buildModelTag('🧠 Kimi', const Color(0xFF9B7DDB)),
+                    const SizedBox(width: 6),
+                    _buildModelTag('⚡ Mistral', const Color(0xFF5DB894)),
+                    const Spacer(),
+                    // Generate button
+                    SizedBox(
+                      height: 36,
+                      child: ElevatedButton(
+                        onPressed: _isCoachLoading
+                            ? null
+                            : () =>
+                                _generateCoachPlan(_coachInputController.text),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: CruizrTheme.primaryDark,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              CruizrTheme.primaryDark.withValues(alpha: 0.5),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isCoachLoading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : Text(
+                                'Generate',
+                                style: GoogleFonts.lato(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Pipeline status & output
+        if (_activeNode.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _buildPipelineStatus(),
+        ],
+
+        // Error message
+        if (_activeNode == 'error') ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red.shade400, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _errorMessage,
+                    style: GoogleFonts.lato(
+                      fontSize: 13,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Planner output (collapsible)
+        if (_plannerOutput.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _buildOutputCard(
+            title: 'Strategy',
+            subtitle: 'Kimi',
+            icon: Icons.psychology_outlined,
+            color: const Color(0xFF9B7DDB),
+            content: _plannerOutput,
+            isCollapsible: true,
+            isExpanded: _showPlannerDetails,
+            onToggle: () =>
+                setState(() => _showPlannerDetails = !_showPlannerDetails),
+          ),
+        ],
+
+        // Executor output (main result)
+        if (_executorOutput.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _buildOutputCard(
+            title: 'Your Training Plan',
+            subtitle: 'Mistral',
+            icon: Icons.calendar_month_outlined,
+            color: const Color(0xFF5DB894),
+            content: _executorOutput,
+            isCollapsible: false,
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── Pipeline Status Indicator ───────────────────────────────────────────
+  Widget _buildPipelineStatus() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _buildPipelineNode(
+            label: 'Plan',
+            icon: Icons.psychology_outlined,
+            isActive: _activeNode == 'planner',
+            isDone: _activeNode == 'executor' || _activeNode == 'done',
+          ),
+          _buildPipelineConnector(
+            isDone: _activeNode == 'executor' || _activeNode == 'done',
+          ),
+          _buildPipelineNode(
+            label: 'Schedule',
+            icon: Icons.event_note_outlined,
+            isActive: _activeNode == 'executor',
+            isDone: _activeNode == 'done',
+          ),
+          _buildPipelineConnector(isDone: _activeNode == 'done'),
+          _buildPipelineNode(
+            label: 'Done',
+            icon: Icons.check_circle_outline,
+            isActive: false,
+            isDone: _activeNode == 'done',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPipelineNode({
+    required String label,
+    required IconData icon,
+    required bool isActive,
+    required bool isDone,
+  }) {
+    final color = isDone
+        ? const Color(0xFF5DB894)
+        : isActive
+            ? CruizrTheme.accentPink
+            : CruizrTheme.textSecondary.withValues(alpha: 0.4);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedBuilder(
+          animation: _pulseController,
+          builder: (context, child) {
+            return Opacity(
+              opacity: isActive ? 0.5 + (_pulseController.value * 0.5) : 1.0,
+              child: child,
+            );
+          },
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isDone
+                  ? color.withValues(alpha: 0.15)
+                  : isActive
+                      ? color.withValues(alpha: 0.12)
+                      : Colors.transparent,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: color,
+                width: isDone || isActive ? 2 : 1,
+              ),
+            ),
+            child: Icon(
+              isDone ? Icons.check : icon,
+              size: 16,
+              color: color,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.lato(
+            fontSize: 10,
+            fontWeight: isDone || isActive ? FontWeight.w600 : FontWeight.w400,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPipelineConnector({required bool isDone}) {
+    return Expanded(
+      child: Container(
+        height: 2,
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: isDone
+              ? const Color(0xFF5DB894).withValues(alpha: 0.4)
+              : CruizrTheme.border,
+          borderRadius: BorderRadius.circular(1),
+        ),
+      ),
+    );
+  }
+
+  // ── Output Card ─────────────────────────────────────────────────────────
+  Widget _buildOutputCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required String content,
+    required bool isCollapsible,
+    bool isExpanded = true,
+    VoidCallback? onToggle,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          InkWell(
+            onTap: isCollapsible ? onToggle : null,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, size: 15, color: color),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: CruizrTheme.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.lato(
+                            fontSize: 11,
+                            color: color,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isCollapsible)
+                    Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      color: CruizrTheme.textSecondary,
+                      size: 20,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          // Content
+          if (!isCollapsible || isExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: CruizrTheme.background,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: SelectableText(
+                  content,
+                  style: GoogleFonts.lato(
+                    fontSize: 13,
+                    height: 1.6,
+                    color: CruizrTheme.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ── Helper Widgets ──────────────────────────────────────────────────────
+  Widget _buildPromptChip(String label) {
+    return GestureDetector(
+      onTap: () {
+        _coachInputController.text = label;
+        _generateCoachPlan(label);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: CruizrTheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: CruizrTheme.border),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.lato(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: CruizrTheme.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModelTag(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.lato(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
         ),
       ),
     );
@@ -398,53 +942,6 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
             fontFamily: 'Playfair Display',
             fontWeight: FontWeight.bold,
           ),
-    );
-  }
-
-  Widget _buildRecommendationCard(
-      String title, String subtitle, IconData icon, Color color) {
-    return Container(
-      width: 160,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ]),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 16),
-          Text(title,
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          Text(subtitle,
-              style: const TextStyle(fontSize: 14, color: Colors.grey)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: CruizrTheme.background,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text('Join',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-          )
-        ],
-      ),
     );
   }
 

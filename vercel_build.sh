@@ -33,6 +33,19 @@ else
     echo "The app may fail to compile or run if this file is missing."
 fi
 
+# 3. Decode the ignored secrets.dart file
+# We expect a base64 string in the Environment Variable: SECRETS_BASE64
+echo "Checking for SECRETS_BASE64..."
+if [ -n "$SECRETS_BASE64" ]; then
+    echo "Decoding secrets.dart from environment variable..."
+    mkdir -p lib/config
+    echo "$SECRETS_BASE64" | base64 --decode > lib/config/secrets.dart
+    echo "Successfully recreated lib/config/secrets.dart"
+else
+    echo "WARNING: SECRETS_BASE64 is not set!"
+    echo "The app may fail to compile or run if this file is missing."
+fi
+
 # 3. Build the Web App
 echo "Building Flutter Web..."
 flutter config --enable-web
