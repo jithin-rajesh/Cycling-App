@@ -4,6 +4,7 @@ import '../widgets/cruizr_switch.dart';
 import 'routes_screen.dart';
 import 'just_move_screen.dart';
 import 'create_route_screen.dart';
+import 'gym_setup_screen.dart';
 
 class StartActivityScreen extends StatefulWidget {
   const StartActivityScreen({super.key});
@@ -69,6 +70,19 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const JustMoveScreen()),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              _buildActionCard(
+                icon: Icons.fitness_center,
+                title: "Gym Exercises",
+                subtitle: "Log your gym workout",
+                iconColor: const Color(0xFF4CAF50),
+                iconBgColor: const Color(0xFFE8F5E9),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const GymSetupScreen()),
                   );
                 },
               ),

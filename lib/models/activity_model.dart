@@ -13,6 +13,9 @@ class ActivityModel {
   final double calories;
   final double elevationGain; // in meters
   final List<LatLng> polyline;
+  final int? gymSets;
+  final int? gymExercises;
+  final String? gymMuscleGroup;
 
   ActivityModel({
     required this.id,
@@ -25,6 +28,9 @@ class ActivityModel {
     required this.calories,
     required this.elevationGain,
     required this.polyline,
+    this.gymSets,
+    this.gymExercises,
+    this.gymMuscleGroup,
   });
 
   Map<String, dynamic> toMap() {
@@ -39,6 +45,9 @@ class ActivityModel {
       'calories': calories,
       'elevationGain': elevationGain,
       'polyline': polyline.map((p) => {'lat': p.latitude, 'lng': p.longitude}).toList(),
+      'gymSets': gymSets,
+      'gymExercises': gymExercises,
+      'gymMuscleGroup': gymMuscleGroup,
     };
   }
 
@@ -57,6 +66,9 @@ class ActivityModel {
               ?.map((p) => LatLng(p['lat'], p['lng']))
               .toList() ??
           [],
+      gymSets: map['gymSets'] as int?,
+      gymExercises: map['gymExercises'] as int?,
+      gymMuscleGroup: map['gymMuscleGroup'] as String?,
     );
   }
 }
