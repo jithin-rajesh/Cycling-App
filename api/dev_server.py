@@ -17,7 +17,7 @@ from plan import handler
 if __name__ == "__main__":
     port = 8000
     server = HTTPServer(("0.0.0.0", port), handler)
-    print(f"🚴 Coach API running at http://localhost:{port}")
+    print(f"Coach API running at http://localhost:{port}")
     print(f"   POST http://localhost:{port}/api/plan")
     print(f"   Press Ctrl+C to stop")
     try:
@@ -25,3 +25,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nShutting down...")
         server.shutdown()
+

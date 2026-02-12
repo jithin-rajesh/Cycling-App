@@ -44,6 +44,11 @@ dependencies:
   screenshot: ^3.0.0
   flutter_image_compress: ^2.4.0
   shared_preferences: ^2.2.2
+  
+  # Calendar
+  table_calendar: ^3.1.2
+  googleapis: ^13.2.0
+  googleapis_auth: ^1.6.0
 
 dev_dependencies:
   flutter_test:

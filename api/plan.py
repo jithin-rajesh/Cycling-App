@@ -16,18 +16,16 @@ from urllib.error import URLError, HTTPError
 
 # ── System Prompts ────────────────────────────────────────────────────────
 PLANNER_SYSTEM = (
-    "You are a world-class cycling coach and training strategist. "
-    "Given a rider's goal, produce a concise high-level training plan. "
-    "Include: weekly structure, intensity zones, rest days, and progression. "
-    "Be specific with distances and effort levels. Keep it under 300 words."
+    "You are a cycling coach. Given a rider's goal, produce a brief training plan. "
+    "Include: weekly structure, intensity zones, rest days. "
+    "Be specific with distances. Keep it under 150 words. No preamble."
 )
 
 EXECUTOR_SYSTEM = (
-    "You are a detailed training schedule builder. "
-    "Given a high-level cycling plan, convert it into a specific day-by-day "
-    "schedule with exact distances, times, and intensity levels. "
-    "Format as a clean markdown table. Include warm-up and cool-down notes. "
-    "Keep the total response under 500 words."
+    "You are a training schedule builder. "
+    "Given a cycling plan, convert it into a day-by-day schedule "
+    "with distances, times, and intensity. "
+    "Format as a markdown table. Keep it under 250 words. No preamble."
 )
 
 
@@ -46,13 +44,13 @@ def stream_nvidia_nim(prompt: str, wfile):
     url = "https://integrate.api.nvidia.com/v1/chat/completions"
 
     payload = json.dumps({
-        "model": "moonshotai/kimi-k2.5",
+        "model": "meta/llama-3.3-70b-instruct",
         "messages": [
             {"role": "system", "content": PLANNER_SYSTEM},
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.7,
-        "max_tokens": 2048,
+        "temperature": 0.4,
+        "max_tokens": 1024,
         "stream": True,
     }).encode("utf-8")
 
@@ -123,8 +121,8 @@ def stream_mistral(prompt: str, wfile):
             {"role": "system", "content": EXECUTOR_SYSTEM},
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.5,
-        "max_tokens": 2048,
+        "temperature": 0.3,
+        "max_tokens": 1024,
         "stream": True,
     }).encode("utf-8")
 
@@ -272,4 +270,4 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def log_message(self, format, *args):
-        print(f"🚴 {self.client_address[0]} - {format % args}")
+        print(f"[Coach] {self.client_address[0]} - {format % args}")
