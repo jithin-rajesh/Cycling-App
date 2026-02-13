@@ -57,8 +57,8 @@ def stream_nvidia_nim(prompt: str, wfile):
             {"role": "system", "content": PLANNER_SYSTEM},
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.7,
-        "max_tokens": 2048,
+        "temperature": 0.4,
+        "max_tokens": 1024,
         "stream": True,
     }).encode("utf-8")
 
@@ -127,8 +127,8 @@ def stream_mistral(prompt: str, wfile):
             {"role": "system", "content": EXECUTOR_SYSTEM},
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.5,
-        "max_tokens": 2048,
+        "temperature": 0.3,
+        "max_tokens": 1024,
         "stream": True,
     }).encode("utf-8")
 
@@ -276,4 +276,4 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def log_message(self, format, *args):
-        print(f"🚴 {self.client_address[0]} - {format % args}")
+        print(f"[Coach] {self.client_address[0]} - {format % args}")

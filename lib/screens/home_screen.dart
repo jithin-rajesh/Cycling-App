@@ -4,13 +4,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../services/activity_service.dart';
+import '../services/calendar_service.dart';
 import '../models/activity_model.dart';
 import 'start_activity_screen.dart';
 import 'activity_history_screen.dart';
 import 'activity_details_screen.dart';
+import 'plan_calendar_screen.dart';
 
 import '../services/user_service.dart';
-import '../widgets/profile_drawer.dart';
+import 'main_navigation_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,10 +21,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  late AnimationController _menuAnimController;
   final String _greeting = 'Welcome back!';
   String _activitySuggestion = 'Ready to move?';
 
@@ -32,20 +32,16 @@ class _HomeScreenState extends State<HomeScreen>
     'calories': 0.0,
   };
   List<ActivityModel> _recentActivities = [];
+  List<Map<String, dynamic>> _savedPlans = [];
 
   @override
   void initState() {
     super.initState();
-    _menuAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
     _loadData();
   }
 
   @override
   void dispose() {
-    _menuAnimController.dispose();
     super.dispose();
   }
 
@@ -53,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen>
     await _loadUserProfile();
     await _loadStats();
     await _loadRecentActivities();
+    await _loadSavedPlans();
   }
 
   Future<void> _loadStats() async {
@@ -96,6 +93,122 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  Future<void> _loadSavedPlans() async {
+    try {
+      final plans = await CalendarService().loadPlans();
+      if (mounted) {
+        setState(() {
+          _savedPlans = plans;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading saved plans: $e');
+    }
+  }
+
+  Future<void> _openPlan(Map<String, dynamic> plan) async {
+    try {
+      final planId = plan['id'] as String;
+      final planTitle = plan['planTitle'] as String? ?? 'Training Plan';
+      final events = await CalendarService().loadPlanEvents(planId);
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PlanCalendarScreen(
+              events: events,
+              planTitle: planTitle,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load plan: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildTrainingPlanCard(Map<String, dynamic> plan) {
+    final title = plan['planTitle'] as String? ?? 'Training Plan';
+    final createdAt = plan['createdAt'];
+    String dateStr = '';
+    if (createdAt != null && createdAt is Timestamp) {
+      dateStr = DateFormat('MMM d').format(createdAt.toDate());
+    }
+    final eventCount = plan['eventCount'] as int? ?? 0;
+
+    return GestureDetector(
+      onTap: () => _openPlan(plan),
+      child: Container(
+        width: 180,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: CruizrTheme.accentPink.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.event_note,
+                      color: CruizrTheme.accentPink, size: 18),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (dateStr.isNotEmpty)
+              Text(
+                'Created $dateStr',
+                style: TextStyle(
+                    color: CruizrTheme.textSecondary, fontSize: 12),
+              ),
+            if (eventCount > 0)
+              Text(
+                '$eventCount sessions',
+                style: TextStyle(
+                    color: CruizrTheme.textSecondary, fontSize: 12),
+              ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Icon(Icons.arrow_forward_ios,
+                    size: 12, color: CruizrTheme.textSecondary),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -104,14 +217,6 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: CruizrTheme.background,
-      drawer: const ProfileDrawer(),
-      onDrawerChanged: (isOpened) {
-        if (isOpened) {
-          _menuAnimController.forward();
-        } else {
-          _menuAnimController.reverse();
-        }
-      },
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -154,19 +259,13 @@ class _HomeScreenState extends State<HomeScreen>
                   InkWell(
                     borderRadius: BorderRadius.circular(24),
                     onTap: () {
-                      final isOpen =
-                          _scaffoldKey.currentState?.isDrawerOpen ?? false;
-                      if (isOpen) {
-                        _scaffoldKey.currentState?.closeDrawer();
-                      } else {
-                        _scaffoldKey.currentState?.openDrawer();
-                      }
+                      MainNavigationScreen.scaffoldKey.currentState
+                          ?.openDrawer();
                     },
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: AnimatedIcon(
-                        icon: AnimatedIcons.menu_close,
-                        progress: _menuAnimController,
+                    child: const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Icon(
+                        Icons.menu,
                         color: CruizrTheme.textPrimary,
                         size: 28,
                       ),
@@ -393,6 +492,37 @@ class _HomeScreenState extends State<HomeScreen>
                   );
                 },
               ),
+
+              // Training Plans
+              if (_savedPlans.isNotEmpty) ...[
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Training Plans",
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontSize: 18, fontStyle: FontStyle.italic),
+                    ),
+                    Icon(Icons.calendar_month,
+                        color: CruizrTheme.textSecondary, size: 20),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 120,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _savedPlans.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      return _buildTrainingPlanCard(_savedPlans[index]);
+                    },
+                  ),
+                ),
+              ],
 
               // Recent Activities
               if (_recentActivities.isNotEmpty) ...[

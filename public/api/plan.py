@@ -50,13 +50,13 @@ def stream_nvidia_nim(prompt: str, wfile):
     url = "https://integrate.api.nvidia.com/v1/chat/completions"
 
     payload = json.dumps({
-        "model": "moonshotai/kimi-k2.5",
+        "model": "meta/llama-3.3-70b-instruct",
         "messages": [
             {"role": "system", "content": PLANNER_SYSTEM},
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.7,
-        "max_tokens": 2048,
+        "temperature": 0.4,
+        "max_tokens": 1024,
         "stream": True,
     }).encode("utf-8")
 
@@ -89,18 +89,12 @@ def stream_nvidia_nim(prompt: str, wfile):
                     try:
                         data = json.loads(data_str)
                         delta = data.get("choices", [{}])[0].get("delta", {})
-
-                        # Kimi k2.5 streams reasoning in reasoning_content
-                        # and final answer in content
                         token = delta.get("content") or ""
-                        reasoning = delta.get("reasoning_content") or ""
-
-                        text = token if token else reasoning
-                        if text:
-                            full_content += text
+                        if token:
+                            full_content += token
                             _send_sse(wfile, {
                                 "node": "planner_token",
-                                "token": text,
+                                "token": token,
                             })
                     except json.JSONDecodeError:
                         continue
@@ -125,8 +119,8 @@ def stream_mistral(prompt: str, wfile):
             {"role": "system", "content": EXECUTOR_SYSTEM},
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.5,
-        "max_tokens": 2048,
+        "temperature": 0.3,
+        "max_tokens": 1024,
         "stream": True,
     }).encode("utf-8")
 

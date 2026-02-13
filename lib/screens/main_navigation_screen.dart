@@ -8,6 +8,7 @@ import 'start_activity_screen.dart';
 import 'community_screen.dart'; // Added
 import 'dart:async'; // Added for StreamSubscription
 import '../services/strava_service.dart'; // Added
+import '../widgets/profile_drawer.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:uni_links/uni_links.dart';
@@ -17,6 +18,9 @@ class MainNavigationScreen extends StatefulWidget {
 
   /// GlobalKey for the Home nav item, used by GoalFlyAnimation to find target position
   static final GlobalKey homeIconKey = GlobalKey();
+
+  /// GlobalKey for the main scaffold, used by HomeScreen to open the drawer
+  static final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -111,7 +115,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: MainNavigationScreen.scaffoldKey,
       backgroundColor: CruizrTheme.background,
+      drawer: const ProfileDrawer(),
       body: _screens[_selectedIndex],
       floatingActionButton: FloatingActionButton(
         onPressed: () {

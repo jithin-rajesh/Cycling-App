@@ -8,8 +8,11 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'dart:convert';
 import '../services/user_service.dart';
 import '../services/coach_service.dart';
+import '../services/plan_parser_service.dart';
+import '../services/calendar_service.dart';
 import 'challenge_routes_screen.dart';
 import 'main_navigation_screen.dart';
+import 'plan_calendar_screen.dart';
 import '../widgets/goal_fly_animation.dart';
 
 class ChallengesScreen extends StatefulWidget {
@@ -221,6 +224,57 @@ class _ChallengesScreenState extends State<ChallengesScreen>
         });
       },
     );
+  }
+
+  /// Save generated plan to calendar and navigate to calendar view
+  Future<void> _saveToCalendar() async {
+    try {
+      // Parse the AI output into structured events
+      final events = PlanParserService.parse(_executorOutput);
+      if (events.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not parse plan into calendar events'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Save to Firestore
+      final calendarService = CalendarService();
+      final planTitle = _coachInputController.text.isNotEmpty
+          ? _coachInputController.text
+          : 'Training Plan';
+      await calendarService.savePlanToFirestore(
+        events: events,
+        planTitle: planTitle,
+        rawPlanText: _executorOutput,
+      );
+
+      // Navigate to calendar screen
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PlanCalendarScreen(
+              events: events,
+              planTitle: planTitle,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save plan: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -669,6 +723,34 @@ class _ChallengesScreenState extends State<ChallengesScreen>
               content: _executorOutput,
               isCollapsible: false,
             ),
+        ],
+
+        // Save to Calendar button (after plan is done)
+        if (_activeNode == 'done' && _executorOutput.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _saveToCalendar,
+              icon: const Icon(Icons.calendar_month, size: 20),
+              label: Text(
+                'Save to Calendar',
+                style: GoogleFonts.lato(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5DB894),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
         ],
       ],
     );
