@@ -4,6 +4,8 @@ import 'package:flutter/cupertino.dart';
 import '../theme/app_theme.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'dart:convert';
 import '../services/user_service.dart';
 import '../services/coach_service.dart';
 import 'challenge_routes_screen.dart';
@@ -656,14 +658,17 @@ class _ChallengesScreenState extends State<ChallengesScreen>
         // Executor output (main result)
         if (_executorOutput.isNotEmpty) ...[
           const SizedBox(height: 12),
-          _buildOutputCard(
-            title: 'Your Training Plan',
-            subtitle: 'Mistral',
-            icon: Icons.calendar_month_outlined,
-            color: const Color(0xFF5DB894),
-            content: _executorOutput,
-            isCollapsible: false,
-          ),
+          if (_tryParsePlan(_executorOutput).isNotEmpty)
+            _buildPlanList(_tryParsePlan(_executorOutput))
+          else
+            _buildOutputCard(
+              title: 'Your Training Plan',
+              subtitle: 'Mistral',
+              icon: Icons.calendar_month_outlined,
+              color: const Color(0xFF5DB894),
+              content: _executorOutput,
+              isCollapsible: false,
+            ),
         ],
       ],
     );
@@ -876,16 +881,194 @@ class _ChallengesScreenState extends State<ChallengesScreen>
                   color: CruizrTheme.background,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: SelectableText(
-                  content,
-                  style: GoogleFonts.lato(
-                    fontSize: 13,
-                    height: 1.6,
-                    color: CruizrTheme.textPrimary,
+                child: MarkdownBody(
+                  data: content,
+                  selectable: true,
+                  softLineBreak: true,
+                  styleSheet: MarkdownStyleSheet(
+                    p: GoogleFonts.lato(
+                      fontSize: 13,
+                      height: 1.6,
+                      color: CruizrTheme.textPrimary,
+                    ),
+                    strong: GoogleFonts.lato(
+                      fontWeight: FontWeight.bold,
+                      color: CruizrTheme.textPrimary,
+                    ),
+                    tableBody: GoogleFonts.sourceCodePro(
+                      fontSize: 11,
+                      color: CruizrTheme.textPrimary,
+                    ),
+                    tableHead: GoogleFonts.sourceCodePro(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: CruizrTheme.textPrimary,
+                    ),
                   ),
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _tryParsePlan(String raw) {
+    final List<Map<String, dynamic>> items = [];
+    final lines = raw.split('\n');
+    for (final line in lines) {
+      if (line.trim().isEmpty) continue;
+      try {
+        final Map<String, dynamic> data = jsonDecode(line);
+        items.add(data);
+      } catch (e) {
+        // Ignore non-JSON lines (partial streams)
+      }
+    }
+    return items;
+  }
+
+  Widget _buildPlanList(List<Map<String, dynamic>> plan) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5DB894).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.calendar_month_outlined,
+                    size: 15, color: Color(0xFF5DB894)),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Your Training Plan',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: CruizrTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildModelTag('Mistral', const Color(0xFF5DB894)),
+            ],
+          ),
+        ),
+        ...plan.map((day) => _buildDayCard(day)),
+      ],
+    );
+  }
+
+  Widget _buildDayCard(Map<String, dynamic> day) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: CruizrTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                day['day'] ?? 'Day',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: CruizrTheme.textPrimary,
+                ),
+              ),
+              if (day['duration'] != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: CruizrTheme.background,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.timer_outlined,
+                          size: 12, color: CruizrTheme.textSecondary),
+                      const SizedBox(width: 4),
+                      Text(
+                        day['duration'],
+                        style: GoogleFonts.lato(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: CruizrTheme.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            day['activity'] ?? 'Rest',
+            style: GoogleFonts.lato(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF5DB894),
+            ),
+          ),
+          if (day['intensity'] != null &&
+              day['intensity'].toString().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              "Intensity: ${day['intensity']}",
+              style: GoogleFonts.lato(
+                fontSize: 12,
+                color: CruizrTheme.textSecondary,
+              ),
+            ),
+          ],
+          if (day['notes'] != null && day['notes'].toString().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF5DB894).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline,
+                      size: 14, color: Color(0xFF5DB894)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      day['notes'],
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: CruizrTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

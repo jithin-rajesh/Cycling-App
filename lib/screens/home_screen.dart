@@ -57,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadStats() async {
     final stats = await ActivityService().getWeeklyStats();
+    if (!mounted) return;
     setState(() {
       _stats = stats;
     });
@@ -64,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadRecentActivities() async {
     final activities = await ActivityService().getRecentActivities();
+    if (!mounted) return;
     setState(() {
       _recentActivities = activities;
     });
@@ -83,9 +85,11 @@ class _HomeScreenState extends State<HomeScreen>
           final List<dynamic> activities = data['activities'];
           if (activities.isNotEmpty) {
             final favorite = activities.first.toString();
-            setState(() {
-              _activitySuggestion = "Hey, let's go $favorite";
-            });
+            if (mounted) {
+              setState(() {
+                _activitySuggestion = "Hey, let's go $favorite";
+              });
+            }
           }
         }
       }

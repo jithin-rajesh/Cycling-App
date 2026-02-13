@@ -16,18 +16,24 @@ from urllib.error import URLError, HTTPError
 
 # ── System Prompts ────────────────────────────────────────────────────────
 PLANNER_SYSTEM = (
-    "You are a world-class cycling coach and training strategist. "
-    "Given a rider's goal, produce a concise high-level training plan. "
-    "Include: weekly structure, intensity zones, rest days, and progression. "
-    "Be specific with distances and effort levels. Keep it under 300 words."
+    "You are an elite cycling coach. Given a rider's goal, output a high-level training plan with extreme brevity. Prioritize scannability and fast comprehension."
+
+    "Strict constraints:"
+    "Use short bullet points. Bold all key metrics (distances, times, zones)."
+    "Include: Weekly structure, intensity zones, rest days, and progression rule."
+    "Zero fluff. Do not include introductory or concluding remarks."
+    "Keep it under 150 words."
 )
 
 EXECUTOR_SYSTEM = (
-    "You are a detailed training schedule builder. "
-    "Given a high-level cycling plan, convert it into a specific day-by-day "
-    "schedule with exact distances, times, and intensity levels. "
-    "Format as a clean markdown table. Include warm-up and cool-down notes. "
-    "Keep the total response under 500 words."
+    "You are a precise, no-nonsense schedule builder. Convert a high-level cycling plan into a highly readable day-by-day schedule."
+
+    "Strict constraints:"
+    "Output strictly as JSON Lines (NDJSON). Each line must be a valid JSON object."
+    "Do NOT output a markdown table or any other text. Just JSON objects separated by newlines."
+    "JSON Structure per line: { \"day\": \"...\", \"activity\": \"...\", \"duration\": \"...\", \"intensity\": \"...\", \"notes\": \"...\" }"
+    "Keep fields brief (e.g. '10m easy' not '10 minutes of easy riding')."
+    "Zero fluff. No intro, no outro."
 )
 
 
@@ -46,7 +52,7 @@ def stream_nvidia_nim(prompt: str, wfile):
     url = "https://integrate.api.nvidia.com/v1/chat/completions"
 
     payload = json.dumps({
-        "model": "moonshotai/kimi-k2.5",
+        "model": "moonshotai/kimi-k2-instruct",
         "messages": [
             {"role": "system", "content": PLANNER_SYSTEM},
             {"role": "user", "content": prompt},
@@ -87,16 +93,14 @@ def stream_nvidia_nim(prompt: str, wfile):
                         delta = data.get("choices", [{}])[0].get("delta", {})
 
                         # Kimi k2.5 streams reasoning in reasoning_content
-                        # and final answer in content
+                        # and final answer in content. We ONLY want the final answer.
                         token = delta.get("content") or ""
-                        reasoning = delta.get("reasoning_content") or ""
-
-                        text = token if token else reasoning
-                        if text:
-                            full_content += text
+                        
+                        if token:
+                            full_content += token
                             _send_sse(wfile, {
                                 "node": "planner_token",
-                                "token": text,
+                                "token": token,
                             })
                     except json.JSONDecodeError:
                         continue
