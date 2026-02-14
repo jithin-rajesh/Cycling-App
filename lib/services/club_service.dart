@@ -9,16 +9,22 @@ class ClubService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Get all clubs
-  Future<List<ClubModel>> getClubs() async {
+  Future<List<ClubModel>> getClubs({String? activityType}) async {
     // If no clubs exist, we'll create some generic ones (in a real app, this would be admin side)
-    final snapshot = await _firestore.collection('clubs').get();
+    Query query = _firestore.collection('clubs');
+    
+    if (activityType != null && activityType != 'All') {
+      query = query.where('activityType', isEqualTo: activityType);
+    }
 
-    if (snapshot.docs.isEmpty) {
+    final snapshot = await query.get();
+
+    if (snapshot.docs.isEmpty && (activityType == null || activityType == 'All')) {
       await _seedClubs();
       return getClubs();
     }
 
-    return snapshot.docs.map((doc) => ClubModel.fromMap(doc.data())).toList();
+    return snapshot.docs.map((doc) => ClubModel.fromMap(doc.data() as Map<String, dynamic>)).toList();
   }
 
   Future<void> _seedClubs() async {
@@ -31,6 +37,7 @@ class ClubService {
         imageUrl:
             'https://images.unsplash.com/photo-1541625602330-2277a4c46182?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
         memberCount: 120,
+        activityType: 'Cycling',
       ),
       ClubModel(
         id: 'weekend_warriors',
@@ -40,6 +47,7 @@ class ClubService {
         imageUrl:
             'https://images.unsplash.com/photo-1517649763962-0c623066013b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
         memberCount: 340,
+        activityType: 'Cycling',
       ),
       ClubModel(
         id: 'elite_cyclists',
@@ -48,6 +56,7 @@ class ClubService {
         imageUrl:
             'https://images.unsplash.com/photo-1558556209-760775d5069b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
         memberCount: 85,
+        activityType: 'Cycling',
       ),
       ClubModel(
         id: 'morning_joggers',
@@ -56,6 +65,7 @@ class ClubService {
         imageUrl:
             'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
         memberCount: 200,
+        activityType: 'Running',
       ),
     ];
 
@@ -64,6 +74,43 @@ class ClubService {
       batch.set(_firestore.collection('clubs').doc(club.id), club.toMap());
     }
     await batch.commit();
+  }
+
+  // Create Club
+  Future<void> createClub({
+    required String name,
+    required String description,
+    required String activityType,
+    required bool isPrivate,
+    String? imageUrl,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User must be logged in');
+
+    final docRef = _firestore.collection('clubs').doc();
+    String? inviteCode;
+    
+    if (isPrivate) {
+       // Simple 6-char random code
+       inviteCode = DateTime.now().millisecondsSinceEpoch.toString().substring(7);
+    }
+
+    final club = ClubModel(
+      id: docRef.id,
+      name: name,
+      description: description,
+      imageUrl: imageUrl ?? 'https://images.unsplash.com/photo-1558556209-760775d5069b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80', // Default image
+      memberCount: 1,
+      isPrivate: isPrivate,
+      inviteCode: inviteCode,
+      activityType: activityType,
+      adminIds: [user.uid],
+    );
+
+    await docRef.set(club.toMap());
+    
+    // Auto-join the creator
+    await joinClub(docRef.id, code: inviteCode);
   }
 
   // Check if user is member
@@ -82,9 +129,23 @@ class ClubService {
   }
 
   // Join Club
-  Future<void> joinClub(String clubId) async {
+  Future<void> joinClub(String clubId, {String? code}) async {
     final user = _auth.currentUser;
     if (user == null) return;
+
+    final clubDoc = await _firestore.collection('clubs').doc(clubId).get();
+    if (!clubDoc.exists) throw Exception('Club not found');
+    
+    final club = ClubModel.fromMap(clubDoc.data()!);
+
+    if (club.isPrivate) {
+      if (code == null || code != club.inviteCode) {
+         // Allow if user is admin (e.g. creator joining)
+         if (!club.adminIds.contains(user.uid)) {
+            throw Exception('Invalid invite code');
+         }
+      }
+    }
 
     final batch = _firestore.batch();
 
@@ -103,9 +164,6 @@ class ClubService {
     batch.update(clubRef, {
       'memberCount': FieldValue.increment(1),
     });
-
-    // Add to user's joined clubs (optional, for quick access)
-    // batch.set(_firestore.collection('users').doc(user.uid).collection('joinedClubs').doc(clubId), {});
 
     await batch.commit();
   }
@@ -254,5 +312,34 @@ class ClubService {
     }
 
     await docRef.update({'reactions': reactions});
+  }
+
+  // Join Club by Code (for direct entry)
+  Future<ClubModel?> joinClubByCode(String code) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    // Find club with this code
+    final snapshot = await _firestore
+        .collection('clubs')
+        .where('inviteCode', isEqualTo: code)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      throw Exception('Invalid invite code');
+    }
+
+    final clubDoc = snapshot.docs.first;
+    final club = ClubModel.fromMap(clubDoc.data());
+
+    // Check if already a member
+    if (await isMember(club.id)) {
+      return club;
+    }
+
+    // Join
+    await joinClub(club.id, code: code);
+    return club;
   }
 }

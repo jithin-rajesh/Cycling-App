@@ -1,10 +1,13 @@
-
 class ClubModel {
   final String id;
   final String name;
   final String description;
   final String imageUrl;
   final int memberCount;
+  final bool isPrivate;
+  final String? inviteCode;
+  final String activityType; // e.g., 'Cycling', 'Running', 'Gym', 'Mixed'
+  final List<String> adminIds;
 
   ClubModel({
     required this.id,
@@ -12,6 +15,10 @@ class ClubModel {
     required this.description,
     required this.imageUrl,
     this.memberCount = 0,
+    this.isPrivate = false,
+    this.inviteCode,
+    this.activityType = 'Mixed',
+    this.adminIds = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -21,6 +28,10 @@ class ClubModel {
       'description': description,
       'imageUrl': imageUrl,
       'memberCount': memberCount,
+      'isPrivate': isPrivate,
+      'inviteCode': inviteCode,
+      'activityType': activityType,
+      'adminIds': adminIds,
     };
   }
 
@@ -31,6 +42,10 @@ class ClubModel {
       description: map['description'] ?? '',
       imageUrl: map['imageUrl'] ?? '',
       memberCount: map['memberCount'] ?? 0,
+      isPrivate: map['isPrivate'] ?? false,
+      inviteCode: map['inviteCode'],
+      activityType: map['activityType'] ?? 'Mixed',
+      adminIds: List<String>.from(map['adminIds'] ?? []),
     );
   }
 }
