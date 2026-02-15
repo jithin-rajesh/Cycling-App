@@ -1,36 +1,114 @@
+import 'dart:convert';
 import '../models/plan_event_model.dart';
 
 /// Parses AI-generated training plan text into structured [PlanEvent] objects.
 ///
-/// The AI output typically looks like:
-///   **Day 1 – Monday: Easy Recovery**
-///   Distance: 15km | Duration: ~45 min
-///   Description text ...
-///
-///   **Day 2 – Tuesday: Interval Training**
-///   ...
+/// Supports TWO input formats:
+/// 1. **JSON Lines** – one JSON object per line (from the Mistral executor):
+///    `{"day":"Day 1","activity":"Easy Recovery","duration":"45 min",...}`
+/// 2. **Markdown text** – traditional "**Day 1 – Monday: …**" format.
 class PlanParserService {
   /// Parse raw plan text into a list of [PlanEvent]s starting from [startDate].
   /// If [startDate] is null defaults to the next Monday from today.
   static List<PlanEvent> parse(String planText, {DateTime? startDate}) {
-    final events = <PlanEvent>[];
-    if (planText.trim().isEmpty) return events;
+    if (planText.trim().isEmpty) return [];
 
     startDate ??= _nextMonday();
 
-    // Split into lines and process
+    // 1. Try JSON Lines first (primary format from executor)
+    final jsonEvents = _tryParseJsonLines(planText, startDate);
+    if (jsonEvents.isNotEmpty) return jsonEvents;
+
+    // 2. Fall back to Markdown parsing
+    return _parseMarkdown(planText, startDate);
+  }
+
+  // ── JSON Lines parser ───────────────────────────────────────────────────
+
+  static List<PlanEvent> _tryParseJsonLines(String text, DateTime startDate) {
+    final events = <PlanEvent>[];
+    final lines = text.split('\n');
+    int dayIndex = 0;
+
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      // Quick check: must start with '{'
+      if (!trimmed.startsWith('{')) continue;
+
+      try {
+        final Map<String, dynamic> data = jsonDecode(trimmed);
+
+        final dayStr = data['day']?.toString() ?? '';
+        final activity = data['activity']?.toString() ?? 'Training';
+        final duration = data['duration']?.toString() ?? '';
+        final intensity = data['intensity']?.toString() ?? '';
+        final notes = data['notes']?.toString() ?? '';
+
+        // Try to extract day number from "Day 1", "Day 2" etc.
+        final dayMatch = RegExp(r'(\d+)').firstMatch(dayStr);
+        if (dayMatch != null) {
+          dayIndex = int.parse(dayMatch.group(1)!) - 1;
+        }
+
+        // Build description from available fields
+        final descParts = <String>[];
+        if (intensity.isNotEmpty) descParts.add('Intensity: $intensity');
+        if (duration.isNotEmpty) descParts.add('Duration: $duration');
+        if (notes.isNotEmpty) descParts.add(notes);
+
+        // Determine the title
+        String title = dayStr.isNotEmpty ? '$dayStr – $activity' : activity;
+
+        events.add(PlanEvent(
+          id: 'plan_$dayIndex',
+          title: title,
+          description: descParts.join('\n'),
+          date: startDate.add(Duration(days: dayIndex)),
+          startHour: 7,
+          startMinute: 0,
+          durationMinutes: _extractDuration(duration) ?? 60,
+        ));
+
+        dayIndex++; // increment for next item if no explicit day number
+      } catch (_) {
+        // Not valid JSON — skip this line, maybe mixed content
+        continue;
+      }
+    }
+
+    return events;
+  }
+
+  // ── Markdown parser (legacy) ────────────────────────────────────────────
+
+  static List<PlanEvent> _parseMarkdown(String planText, DateTime startDate) {
+    final events = <PlanEvent>[];
     final lines = planText.split('\n');
     String currentTitle = '';
     StringBuffer currentDescription = StringBuffer();
     int dayIndex = -1;
+    int currentWeek = 1;
     int? durationMinutes;
+
+    final weekHeaderRegex =
+        RegExp(r'^\*{0,3}\s*#{0,4}\s*Week\s+(\d+)', caseSensitive: false);
+    final dayHeaderRegex = RegExp(r'Day\s+(\d+)', caseSensitive: false);
 
     for (final rawLine in lines) {
       final line = rawLine.trim();
       if (line.isEmpty) continue;
 
+      // Detect Week Header (e.g. "Week 2")
+      final weekMatch = weekHeaderRegex.firstMatch(line);
+      if (weekMatch != null) {
+        if (line.length < 20) {
+          currentWeek = int.parse(weekMatch.group(1)!);
+          continue;
+        }
+      }
+
       // Detect day/session headers
-      // Patterns: "**Day 1 ...**", "### Day 1", "Day 1:", "**Monday:**"
       if (_isDayHeader(line)) {
         // Save previous event if any
         if (dayIndex >= 0 && currentTitle.isNotEmpty) {
@@ -43,7 +121,19 @@ class PlanParserService {
           ));
         }
 
-        dayIndex++;
+        // Calculate new day index
+        final dayMatch = dayHeaderRegex.firstMatch(line);
+        if (dayMatch != null) {
+          int dayNum = int.parse(dayMatch.group(1)!);
+          if (dayNum > 7) {
+            dayIndex = dayNum - 1;
+          } else {
+            dayIndex = (currentWeek - 1) * 7 + (dayNum - 1);
+          }
+        } else {
+          dayIndex++;
+        }
+
         currentTitle = _cleanHeader(line);
         currentDescription = StringBuffer();
         durationMinutes = null;
@@ -91,51 +181,56 @@ class PlanParserService {
 
   static bool _isDayHeader(String line) {
     final lower = line.toLowerCase();
-    // **Day 1 ...** or ### Day 1 or Day 1: ... or **Monday:** etc.
+
+    // Explicit "Day X" pattern
     if (RegExp(r'^\*{0,3}\s*#{0,4}\s*\**\s*day\s+\d+', caseSensitive: false)
         .hasMatch(line)) {
       return true;
     }
-    // **Monday**, **Tuesday**, etc.
+
+    // Week + Day pattern (e.g. "Week 1 Day 1")
+    if (lower.contains('week') && lower.contains('day')) {
+      if (RegExp(r'week\s+\d+.*day\s+\d+', caseSensitive: false)
+          .hasMatch(line)) {
+        return true;
+      }
+    }
+
+    // Day of week names (Monday, etc.)
     if (RegExp(
-            r'^\*{0,3}\s*\**\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)',
+            r'^\*{0,3}\s*#{0,4}\s*\**\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)',
             caseSensitive: false)
         .hasMatch(line)) {
       return true;
     }
-    // "Week X, Day Y" pattern
-    if (RegExp(r'^\*{0,3}\s*\**\s*week\s+\d+.*day\s+\d+',
-            caseSensitive: false)
-        .hasMatch(line)) {
-      return true;
-    }
+
     // "Session X" pattern
-    if (RegExp(r'^\*{0,3}\s*\**\s*session\s+\d+', caseSensitive: false)
+    if (RegExp(r'^\*{0,3}\s*#{0,4}\s*\**\s*session\s+\d+', caseSensitive: false)
         .hasMatch(line)) {
       return true;
     }
-    // "### " markdown header with ride/training keywords
-    if (line.startsWith('###') &&
-        (lower.contains('ride') ||
-            lower.contains('training') ||
-            lower.contains('rest') ||
-            lower.contains('recovery') ||
-            lower.contains('workout'))) {
-      return true;
+
+    // "### Category" headers (Markdown headers likely denoting a new section if they contain keywords)
+    if (line.trim().startsWith('###')) {
+      if (lower.contains('ride') ||
+          lower.contains('training') ||
+          lower.contains('rest') ||
+          lower.contains('recovery') ||
+          lower.contains('interval') ||
+          lower.contains('endurance')) {
+        return true;
+      }
     }
+
     return false;
   }
 
   static String _cleanHeader(String line) {
-    // Remove markdown formatting
+    // Remove markdown formatting (*, #)
     var cleaned = line.replaceAll(RegExp(r'[*#]+'), '').trim();
-    // Remove trailing colons
+    // Remove "Header:" style
     if (cleaned.endsWith(':')) {
       cleaned = cleaned.substring(0, cleaned.length - 1).trim();
-    }
-    // Truncate if too long
-    if (cleaned.length > 80) {
-      cleaned = '${cleaned.substring(0, 77)}...';
     }
     return cleaned;
   }
@@ -150,15 +245,13 @@ class PlanParserService {
       return int.tryParse(minMatch.group(1)!);
     }
 
-    final hourMatch =
-        RegExp(r'(\d+)\s*(?:hour|hr|h)', caseSensitive: false)
-            .firstMatch(lower);
+    final hourMatch = RegExp(r'(\d+)\s*(?:hour|hr|h)', caseSensitive: false)
+        .firstMatch(lower);
     if (hourMatch != null) {
       final hours = int.tryParse(hourMatch.group(1)!) ?? 1;
       // Check for additional minutes like "1h30m"
-      final additionalMin =
-          RegExp(r'(\d+)\s*m(?:in)?', caseSensitive: false)
-              .firstMatch(lower.substring(hourMatch.end));
+      final additionalMin = RegExp(r'(\d+)\s*m(?:in)?', caseSensitive: false)
+          .firstMatch(lower.substring(hourMatch.end));
       final mins = additionalMin != null
           ? (int.tryParse(additionalMin.group(1)!) ?? 0)
           : 0;
@@ -190,7 +283,8 @@ class PlanParserService {
     final now = DateTime.now();
     // Find next Monday (or tomorrow if today is Sunday)
     final daysUntilMonday = (DateTime.monday - now.weekday + 7) % 7;
-    final nextMon = now.add(Duration(days: daysUntilMonday == 0 ? 7 : daysUntilMonday));
+    final nextMon =
+        now.add(Duration(days: daysUntilMonday == 0 ? 7 : daysUntilMonday));
     return DateTime(nextMon.year, nextMon.month, nextMon.day);
   }
 }

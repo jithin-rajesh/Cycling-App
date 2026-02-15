@@ -1,7 +1,5 @@
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../theme/app_theme.dart';
 import '../widgets/muscle_map_widget.dart';
 import '../models/activity_model.dart';
 import '../services/activity_service.dart';
@@ -45,12 +43,12 @@ class _GymSummaryScreenState extends State<GymSummaryScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error: Not logged in')),
         );
-         setState(() {
-           _isSaving = false;
-         });
+        setState(() {
+          _isSaving = false;
+        });
       }
       return;
     }
@@ -112,17 +110,19 @@ class _GymSummaryScreenState extends State<GymSummaryScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Stats Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildStatItem('duration', _formatDuration(widget.duration)),
+                    _buildStatItem(
+                        'duration', _formatDuration(widget.duration)),
                     const SizedBox(width: 8), // Small spacer
                     Container(width: 1, height: 40, color: Colors.white24),
                     const SizedBox(width: 8),
-                    _buildStatItem('Exercises', '${widget.exercises} exercises'),
+                    _buildStatItem(
+                        'Exercises', '${widget.exercises} exercises'),
                     const SizedBox(width: 8),
                     Container(width: 1, height: 40, color: Colors.white24),
                     const SizedBox(width: 8),
@@ -135,10 +135,11 @@ class _GymSummaryScreenState extends State<GymSummaryScreen> {
                 // Muscle Map Visualization
                 Expanded(
                   child: Center(
-                    child: MuscleMapWidget(activeMuscleGroup: widget.muscleGroup),
+                    child:
+                        MuscleMapWidget(activeMuscleGroup: widget.muscleGroup),
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
               ],
             ),
@@ -175,20 +176,21 @@ class _GymSummaryScreenState extends State<GymSummaryScreen> {
                 ),
               ),
             ),
-             // Close button top right
+            // Close button top right
             Positioned(
               top: 16,
               right: 16,
               child: IconButton(
                 icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () {
-                   // Confirm discard? Or just navigate home?
-                   // For now, assume discard or user just checking.
-                    showDialog(
+                  // Confirm discard? Or just navigate home?
+                  // For now, assume discard or user just checking.
+                  showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
                       title: const Text('Discard Workout?'),
-                      content: const Text('If you leave now, your progress will not be saved.'),
+                      content: const Text(
+                          'If you leave now, your progress will not be saved.'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
@@ -197,9 +199,11 @@ class _GymSummaryScreenState extends State<GymSummaryScreen> {
                         TextButton(
                           onPressed: () {
                             Navigator.pop(context); // Close dialog
-                            Navigator.of(context).popUntil((route) => route.isFirst); // Go home
+                            Navigator.of(context)
+                                .popUntil((route) => route.isFirst); // Go home
                           },
-                          child: const Text('Discard', style: TextStyle(color: Colors.red)),
+                          child: const Text('Discard',
+                              style: TextStyle(color: Colors.red)),
                         ),
                       ],
                     ),
@@ -221,7 +225,6 @@ class _GymSummaryScreenState extends State<GymSummaryScreen> {
           style: const TextStyle(
             fontSize: 10,
             color: Colors.white60,
-            
           ),
         ),
         const SizedBox(height: 4),

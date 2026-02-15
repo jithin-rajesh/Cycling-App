@@ -26,14 +26,25 @@ PLANNER_SYSTEM = (
 )
 
 EXECUTOR_SYSTEM = (
-    "You are a precise, no-nonsense schedule builder. Convert a high-level cycling plan into a highly readable day-by-day schedule."
+    "You are a precise schedule builder. Convert a high-level cycling plan into a day-by-day schedule.\n\n"
 
-    "Strict constraints:"
-    "Output strictly as JSON Lines (NDJSON). Each line must be a valid JSON object."
-    "Do NOT output a markdown table or any other text. Just JSON objects separated by newlines."
-    "JSON Structure per line: { \"day\": \"...\", \"activity\": \"...\", \"duration\": \"...\", \"intensity\": \"...\", \"notes\": \"...\" }"
-    "Keep fields brief (e.g. '10m easy' not '10 minutes of easy riding')."
-    "Zero fluff. No intro, no outro."
+    "CRITICAL OUTPUT RULES:\n"
+    "1. Output ONLY JSON Lines (one JSON object per line, no markdown, no text).\n"
+    "2. Each line = exactly ONE day. NEVER combine multiple days into one line.\n"
+    "3. Number days sequentially: Day 1, Day 2, Day 3, ... Day 7 for week 1, Day 8, Day 9, ... Day 14 for week 2, etc.\n"
+    "4. A 1-week plan = exactly 7 lines. A 2-week plan = exactly 14 lines. A 4-week plan = exactly 28 lines.\n"
+    "5. Include rest days as their own line with activity 'Rest Day'.\n\n"
+
+    "JSON format per line:\n"
+    '{\"day\": \"Day 1\", \"activity\": \"...\", \"duration\": \"...\", \"intensity\": \"...\", \"notes\": \"...\"}\n\n'
+
+    "Example for a 1-week plan (7 lines):\n"
+    '{\"day\": \"Day 1\", \"activity\": \"Easy Spin\", \"duration\": \"45m\", \"intensity\": \"Zone 2\", \"notes\": \"Warm up 10m, easy pace\"}\n'
+    '{\"day\": \"Day 2\", \"activity\": \"Interval Training\", \"duration\": \"60m\", \"intensity\": \"Zone 4-5\", \"notes\": \"4x5m hard, 3m rest\"}\n'
+    '{\"day\": \"Day 3\", \"activity\": \"Rest Day\", \"duration\": \"-\", \"intensity\": \"-\", \"notes\": \"Active recovery or off\"}\n'
+    "... and so on for all 7 days.\n\n"
+
+    "Keep field values brief. Zero fluff. No intro, no outro. Just the JSON lines."
 )
 
 

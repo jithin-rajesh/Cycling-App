@@ -24,6 +24,7 @@ class CalendarService {
     required List<PlanEvent> events,
     required String planTitle,
     required String rawPlanText,
+    int? colorValue,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) throw Exception('User not signed in');
@@ -41,6 +42,7 @@ class CalendarService {
       'createdAt': FieldValue.serverTimestamp(),
       'eventCount': events.length,
       'synced': false,
+      'colorValue': colorValue,
     });
 
     // Save each event as a sub-document
@@ -66,9 +68,7 @@ class CalendarService {
         .orderBy('createdAt', descending: true)
         .get();
 
-    return snapshot.docs
-        .map((doc) => {'id': doc.id, ...doc.data()})
-        .toList();
+    return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
   }
 
   /// Load events for a specific plan.
@@ -85,9 +85,93 @@ class CalendarService {
         .orderBy('date')
         .get();
 
-    return snapshot.docs
-        .map((doc) => PlanEvent.fromMap(doc.data()))
-        .toList();
+    return snapshot.docs.map((doc) => PlanEvent.fromMap(doc.data())).toList();
+  }
+
+  /// Load ALL events across ALL plans for the current user.
+  /// Returns a flat list of PlanEvents, each with its colorValue set from the parent plan.
+  Future<List<PlanEvent>> loadAllPlanEvents() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return [];
+
+    final plansSnapshot =
+        await _firestore.collection('users').doc(uid).collection('plans').get();
+
+    final allEvents = <PlanEvent>[];
+
+    for (final planDoc in plansSnapshot.docs) {
+      final planData = planDoc.data();
+      final colorValue = planData['colorValue'] as int?;
+
+      final eventsSnapshot = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('plans')
+          .doc(planDoc.id)
+          .collection('events')
+          .orderBy('date')
+          .get();
+
+      for (final eventDoc in eventsSnapshot.docs) {
+        final event = PlanEvent.fromMap(eventDoc.data());
+        // Stamp the color from the parent plan
+        event.colorValue = colorValue;
+        // Store planId for deletion reference
+        event.planId = planDoc.id;
+        allEvents.add(event);
+      }
+    }
+
+    return allEvents;
+  }
+
+  /// Delete an entire plan and its events.
+  Future<void> deletePlan(String planId) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    final planRef =
+        _firestore.collection('users').doc(uid).collection('plans').doc(planId);
+
+    // 1. Delete all sub-collection events
+    final events = await planRef.collection('events').get();
+    final batch = _firestore.batch();
+    for (final doc in events.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // 2. Delete the plan document itself
+    batch.delete(planRef);
+
+    await batch.commit();
+  }
+
+  /// Delete a single event from a plan.
+  Future<void> deleteEvent(String planId, String eventId) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    final eventRef = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('plans')
+        .doc(planId)
+        .collection('events')
+        .doc(eventId);
+
+    await eventRef.delete();
+
+    // Optionally update eventCount in parent plan
+    final planRef =
+        _firestore.collection('users').doc(uid).collection('plans').doc(planId);
+
+    // We can't easily decrement atomically without a transaction or reading count first.
+    // Making it simple for now: valid decrement if it exists.
+    try {
+      await planRef.update({'eventCount': FieldValue.increment(-1)});
+    } catch (e) {
+      // Ignore if plan doesn't exist or other error
+    }
   }
 
   // ── Google Calendar operations ─────────────────────────────────────────
@@ -122,8 +206,7 @@ class CalendarService {
               gcal.EventReminder(method: 'popup', minutes: 30),
             ]);
 
-          final created =
-              await calendarApi.events.insert(gEvent, 'primary');
+          final created = await calendarApi.events.insert(gEvent, 'primary');
           event.googleCalendarEventId = created.id;
           synced++;
         } catch (e) {
@@ -203,11 +286,8 @@ class CalendarService {
     if (plansSnapshot.docs.isEmpty) return;
 
     final planId = plansSnapshot.docs.first.id;
-    final planRef = _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('plans')
-        .doc(planId);
+    final planRef =
+        _firestore.collection('users').doc(uid).collection('plans').doc(planId);
 
     await planRef.update({'synced': true});
 

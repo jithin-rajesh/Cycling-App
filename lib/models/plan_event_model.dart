@@ -8,6 +8,8 @@ class PlanEvent {
   final int? startHour; // 0-23
   final int? startMinute; // 0-59
   final int? durationMinutes;
+  int? colorValue; // ARGB int - mutable so service can stamp from parent plan
+  String? planId; // Reference to parent plan for deletion
   String? googleCalendarEventId;
 
   PlanEvent({
@@ -19,6 +21,7 @@ class PlanEvent {
     this.startMinute,
     this.durationMinutes,
     this.googleCalendarEventId,
+    this.colorValue,
   });
 
   /// Start time as a DateTime (defaults to 7:00 AM if not set)
@@ -47,6 +50,7 @@ class PlanEvent {
       'startMinute': startMinute,
       'durationMinutes': durationMinutes,
       'googleCalendarEventId': googleCalendarEventId,
+      'colorValue': colorValue,
     };
   }
 
@@ -60,6 +64,7 @@ class PlanEvent {
       startMinute: map['startMinute'],
       durationMinutes: map['durationMinutes'],
       googleCalendarEventId: map['googleCalendarEventId'],
+      colorValue: map['colorValue'],
     );
   }
 }

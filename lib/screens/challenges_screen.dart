@@ -1,19 +1,13 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../theme/app_theme.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'dart:convert';
 import '../services/user_service.dart';
-import '../services/coach_service.dart';
-import '../services/plan_parser_service.dart';
-import '../services/calendar_service.dart';
 import 'challenge_routes_screen.dart';
 import 'main_navigation_screen.dart';
-import 'plan_calendar_screen.dart';
 import '../widgets/goal_fly_animation.dart';
+import 'chatbot_screen.dart';
 
 class ChallengesScreen extends StatefulWidget {
   const ChallengesScreen({super.key});
@@ -43,19 +37,6 @@ class _ChallengesScreenState extends State<ChallengesScreen>
   late FixedExtentScrollController _durationAmountController;
   late FixedExtentScrollController _durationUnitController;
 
-  // AI Coach State
-  final TextEditingController _coachInputController = TextEditingController();
-  bool _isCoachLoading = false;
-  String _activeNode = ''; // "planner", "executor", "done", "error"
-  String _plannerOutput = '';
-  String _executorOutput = '';
-  String _errorMessage = '';
-  bool _showPlannerDetails = false;
-  StreamSubscription<CoachEvent>? _coachSubscription;
-
-  // Animation for the coach section
-  late AnimationController _pulseController;
-
   @override
   void initState() {
     super.initState();
@@ -65,11 +46,6 @@ class _ChallengesScreenState extends State<ChallengesScreen>
     _durationUnitController =
         FixedExtentScrollController(initialItem: _selectedDurationUnitIndex);
     _updateTargets();
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
   }
 
   void _updateTargets() {
@@ -108,9 +84,6 @@ class _ChallengesScreenState extends State<ChallengesScreen>
     _metricController.dispose();
     _durationAmountController.dispose();
     _durationUnitController.dispose();
-    _coachInputController.dispose();
-    _coachSubscription?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -150,133 +123,6 @@ class _ChallengesScreenState extends State<ChallengesScreen>
     );
   }
 
-  /// Generate a coaching plan via the AI backend
-  void _generateCoachPlan(String query) {
-    if (query.trim().isEmpty) return;
-
-    setState(() {
-      _isCoachLoading = true;
-      _activeNode = 'planner';
-      _plannerOutput = '';
-      _executorOutput = '';
-      _errorMessage = '';
-      _showPlannerDetails = false;
-    });
-
-    _coachSubscription?.cancel();
-    _coachSubscription = CoachService.generatePlan(query).listen(
-      (event) {
-        if (!mounted) return;
-        setState(() {
-          switch (event.node) {
-            // Planner lifecycle
-            case 'planner_start':
-              _activeNode = 'planner';
-              break;
-            case 'planner_token':
-              _activeNode = 'planner';
-              _plannerOutput += event.token ?? '';
-              break;
-            case 'planner_done':
-              _activeNode = 'executor';
-              // Use full plan text if available, otherwise keep streamed text
-              if (event.plan != null && event.plan!.isNotEmpty) {
-                _plannerOutput = event.plan!;
-              }
-              break;
-
-            // Executor lifecycle
-            case 'executor_start':
-              _activeNode = 'executor';
-              break;
-            case 'executor_token':
-              _activeNode = 'executor';
-              _executorOutput += event.token ?? '';
-              break;
-            case 'executor_done':
-              _activeNode = 'done';
-              if (event.finalResponse != null &&
-                  event.finalResponse!.isNotEmpty) {
-                _executorOutput = event.finalResponse!;
-              }
-              _isCoachLoading = false;
-              break;
-
-            // Terminal states
-            case 'done':
-              _activeNode = 'done';
-              _isCoachLoading = false;
-              break;
-            case 'error':
-              _activeNode = 'error';
-              _errorMessage = event.status;
-              _isCoachLoading = false;
-              break;
-          }
-        });
-      },
-      onError: (e) {
-        if (!mounted) return;
-        setState(() {
-          _activeNode = 'error';
-          _errorMessage = e.toString();
-          _isCoachLoading = false;
-        });
-      },
-    );
-  }
-
-  /// Save generated plan to calendar and navigate to calendar view
-  Future<void> _saveToCalendar() async {
-    try {
-      // Parse the AI output into structured events
-      final events = PlanParserService.parse(_executorOutput);
-      if (events.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not parse plan into calendar events'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
-      // Save to Firestore
-      final calendarService = CalendarService();
-      final planTitle = _coachInputController.text.isNotEmpty
-          ? _coachInputController.text
-          : 'Training Plan';
-      await calendarService.savePlanToFirestore(
-        events: events,
-        planTitle: planTitle,
-        rawPlanText: _executorOutput,
-      );
-
-      // Navigate to calendar screen
-      if (mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => PlanCalendarScreen(
-              events: events,
-              planTitle: planTitle,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save plan: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -305,8 +151,8 @@ class _ChallengesScreenState extends State<ChallengesScreen>
               ),
               const SizedBox(height: 32),
 
-              // AI Coach Section (replaces Recommended for You)
-              _buildCoachSection(),
+              // AI Coach Section (Replaced with Button)
+              _buildCoachButton(),
               const SizedBox(height: 32),
 
               // Manual Goal Setter
@@ -515,383 +361,17 @@ class _ChallengesScreenState extends State<ChallengesScreen>
     );
   }
 
-  // ── AI Coach Section ────────────────────────────────────────────────────
-  Widget _buildCoachSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section header with badge
-        Row(
-          children: [
-            _buildSectionTitle('AI Coach'),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: CruizrTheme.accentPink.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'Beta',
-                style: GoogleFonts.lato(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: CruizrTheme.accentPink,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Kimi plans your strategy, Mistral builds the schedule',
-          style: GoogleFonts.lato(
-            fontSize: 12,
-            color: CruizrTheme.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Prompt chips
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildPromptChip('Plan my 100km week'),
-              const SizedBox(width: 8),
-              _buildPromptChip('4-week race prep'),
-              const SizedBox(width: 8),
-              _buildPromptChip('Weekend only 60km'),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Input card
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-                child: TextField(
-                  controller: _coachInputController,
-                  maxLines: 2,
-                  minLines: 1,
-                  style: GoogleFonts.lato(
-                    fontSize: 14,
-                    color: CruizrTheme.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Describe your training goal...',
-                    hintStyle: GoogleFonts.lato(
-                      fontSize: 14,
-                      color: CruizrTheme.textSecondary.withValues(alpha: 0.6),
-                    ),
-                    border: InputBorder.none,
-                    filled: false,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                child: Row(
-                  children: [
-                    // Model indicators
-                    _buildModelTag('🧠 Kimi', const Color(0xFF9B7DDB)),
-                    const SizedBox(width: 6),
-                    _buildModelTag('⚡ Mistral', const Color(0xFF5DB894)),
-                    const Spacer(),
-                    // Generate button
-                    SizedBox(
-                      height: 36,
-                      child: ElevatedButton(
-                        onPressed: _isCoachLoading
-                            ? null
-                            : () =>
-                                _generateCoachPlan(_coachInputController.text),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: CruizrTheme.primaryDark,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor:
-                              CruizrTheme.primaryDark.withValues(alpha: 0.5),
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: _isCoachLoading
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white),
-                                ),
-                              )
-                            : Text(
-                                'Generate',
-                                style: GoogleFonts.lato(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Pipeline status & output
-        if (_activeNode.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _buildPipelineStatus(),
-        ],
-
-        // Error message
-        if (_activeNode == 'error') ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.red.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.red.shade400, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    _errorMessage,
-                    style: GoogleFonts.lato(
-                      fontSize: 13,
-                      color: Colors.red.shade700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-
-        // Planner output (collapsible)
-        if (_plannerOutput.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _buildOutputCard(
-            title: 'Strategy',
-            subtitle: 'Kimi',
-            icon: Icons.psychology_outlined,
-            color: const Color(0xFF9B7DDB),
-            content: _plannerOutput,
-            isCollapsible: true,
-            isExpanded: _showPlannerDetails,
-            onToggle: () =>
-                setState(() => _showPlannerDetails = !_showPlannerDetails),
-          ),
-        ],
-
-        // Executor output (main result)
-        if (_executorOutput.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          if (_tryParsePlan(_executorOutput).isNotEmpty)
-            _buildPlanList(_tryParsePlan(_executorOutput))
-          else
-            _buildOutputCard(
-              title: 'Your Training Plan',
-              subtitle: 'Mistral',
-              icon: Icons.calendar_month_outlined,
-              color: const Color(0xFF5DB894),
-              content: _executorOutput,
-              isCollapsible: false,
-            ),
-        ],
-
-        // Save to Calendar button (after plan is done)
-        if (_activeNode == 'done' && _executorOutput.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _saveToCalendar,
-              icon: const Icon(Icons.calendar_month, size: 20),
-              label: Text(
-                'Save to Calendar',
-                style: GoogleFonts.lato(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF5DB894),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  // ── Pipeline Status Indicator ───────────────────────────────────────────
-  Widget _buildPipelineStatus() {
+  Widget _buildCoachButton() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _buildPipelineNode(
-            label: 'Plan',
-            icon: Icons.psychology_outlined,
-            isActive: _activeNode == 'planner',
-            isDone: _activeNode == 'executor' || _activeNode == 'done',
-          ),
-          _buildPipelineConnector(
-            isDone: _activeNode == 'executor' || _activeNode == 'done',
-          ),
-          _buildPipelineNode(
-            label: 'Schedule',
-            icon: Icons.event_note_outlined,
-            isActive: _activeNode == 'executor',
-            isDone: _activeNode == 'done',
-          ),
-          _buildPipelineConnector(isDone: _activeNode == 'done'),
-          _buildPipelineNode(
-            label: 'Done',
-            icon: Icons.check_circle_outline,
-            isActive: false,
-            isDone: _activeNode == 'done',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPipelineNode({
-    required String label,
-    required IconData icon,
-    required bool isActive,
-    required bool isDone,
-  }) {
-    final color = isDone
-        ? const Color(0xFF5DB894)
-        : isActive
-            ? CruizrTheme.accentPink
-            : CruizrTheme.textSecondary.withValues(alpha: 0.4);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, child) {
-            return Opacity(
-              opacity: isActive ? 0.5 + (_pulseController.value * 0.5) : 1.0,
-              child: child,
-            );
-          },
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isDone
-                  ? color.withValues(alpha: 0.15)
-                  : isActive
-                      ? color.withValues(alpha: 0.12)
-                      : Colors.transparent,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: color,
-                width: isDone || isActive ? 2 : 1,
-              ),
-            ),
-            child: Icon(
-              isDone ? Icons.check : icon,
-              size: 16,
-              color: color,
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: GoogleFonts.lato(
-            fontSize: 10,
-            fontWeight: isDone || isActive ? FontWeight.w600 : FontWeight.w400,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPipelineConnector({required bool isDone}) {
-    return Expanded(
-      child: Container(
-        height: 2,
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: isDone
-              ? const Color(0xFF5DB894).withValues(alpha: 0.4)
-              : CruizrTheme.border,
-          borderRadius: BorderRadius.circular(1),
-        ),
-      ),
-    );
-  }
-
-  // ── Output Card ─────────────────────────────────────────────────────────
-  Widget _buildOutputCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required String content,
-    required bool isCollapsible,
-    bool isExpanded = true,
-    VoidCallback? onToggle,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.08),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
@@ -899,303 +379,69 @@ class _ChallengesScreenState extends State<ChallengesScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          InkWell(
-            onTap: isCollapsible ? onToggle : null,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-              child: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(icon, size: 15, color: color),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: CruizrTheme.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          subtitle,
-                          style: GoogleFonts.lato(
-                            fontSize: 11,
-                            color: color,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isCollapsible)
-                    Icon(
-                      isExpanded
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                      color: CruizrTheme.textSecondary,
-                      size: 20,
-                    ),
-                ],
-              ),
-            ),
-          ),
-          // Content
-          if (!isCollapsible || isExpanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: CruizrTheme.background,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: MarkdownBody(
-                  data: content,
-                  selectable: true,
-                  softLineBreak: true,
-                  styleSheet: MarkdownStyleSheet(
-                    p: GoogleFonts.lato(
-                      fontSize: 13,
-                      height: 1.6,
-                      color: CruizrTheme.textPrimary,
-                    ),
-                    strong: GoogleFonts.lato(
-                      fontWeight: FontWeight.bold,
-                      color: CruizrTheme.textPrimary,
-                    ),
-                    tableBody: GoogleFonts.sourceCodePro(
-                      fontSize: 11,
-                      color: CruizrTheme.textPrimary,
-                    ),
-                    tableHead: GoogleFonts.sourceCodePro(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: CruizrTheme.textPrimary,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  List<Map<String, dynamic>> _tryParsePlan(String raw) {
-    final List<Map<String, dynamic>> items = [];
-    final lines = raw.split('\n');
-    for (final line in lines) {
-      if (line.trim().isEmpty) continue;
-      try {
-        final Map<String, dynamic> data = jsonDecode(line);
-        items.add(data);
-      } catch (e) {
-        // Ignore non-JSON lines (partial streams)
-      }
-    }
-    return items;
-  }
-
-  Widget _buildPlanList(List<Map<String, dynamic>> plan) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Row(
+          Row(
             children: [
               Container(
-                width: 28,
-                height: 28,
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF5DB894).withValues(alpha: 0.12),
+                  color: CruizrTheme.accentPink.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.calendar_month_outlined,
-                    size: 15, color: Color(0xFF5DB894)),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Your Training Plan',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: CruizrTheme.textPrimary,
+                child: Icon(
+                  Icons.psychology_outlined,
+                  color: CruizrTheme.accentPink,
+                  size: 24,
                 ),
               ),
-              const SizedBox(width: 8),
-              _buildModelTag('Mistral', const Color(0xFF5DB894)),
-            ],
-          ),
-        ),
-        ...plan.map((day) => _buildDayCard(day)),
-      ],
-    );
-  }
-
-  Widget _buildDayCard(Map<String, dynamic> day) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(color: CruizrTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                day['day'] ?? 'Day',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: CruizrTheme.textPrimary,
-                ),
-              ),
-              if (day['duration'] != null)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: CruizrTheme.background,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.timer_outlined,
-                          size: 12, color: CruizrTheme.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        day['duration'],
-                        style: GoogleFonts.lato(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: CruizrTheme.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            day['activity'] ?? 'Rest',
-            style: GoogleFonts.lato(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF5DB894),
-            ),
-          ),
-          if (day['intensity'] != null &&
-              day['intensity'].toString().isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              "Intensity: ${day['intensity']}",
-              style: GoogleFonts.lato(
-                fontSize: 12,
-                color: CruizrTheme.textSecondary,
-              ),
-            ),
-          ],
-          if (day['notes'] != null && day['notes'].toString().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF5DB894).withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
+              const SizedBox(width: 16),
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline,
-                      size: 14, color: Color(0xFF5DB894)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      day['notes'],
-                      style: GoogleFonts.lato(
-                        fontSize: 12,
-                        height: 1.4,
-                        color: CruizrTheme.textPrimary,
-                      ),
-                    ),
+                  Text(
+                    'AI Coach',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  Text(
+                    'Get a personalized plan',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  // ── Helper Widgets ──────────────────────────────────────────────────────
-  Widget _buildPromptChip(String label) {
-    return GestureDetector(
-      onTap: () {
-        _coachInputController.text = label;
-        _generateCoachPlan(label);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: CruizrTheme.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: CruizrTheme.border),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.lato(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: CruizrTheme.textPrimary,
+            ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModelTag(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.lato(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (context) => const ChatbotScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: CruizrTheme.primaryDark,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Create your own challenge plan',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
