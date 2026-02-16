@@ -93,7 +93,42 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
                   ),
                 ),
                 actions: [
-                  if (!_isLoading)
+                  if (!_isLoading) ...[
+                     if (widget.club.isPrivate && _isMember && widget.club.inviteCode != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: CircleAvatar(
+                          backgroundColor: Colors.black45,
+                          child: IconButton(
+                            icon: const Icon(Icons.share, color: Colors.white, size: 20),
+                            onPressed: () {
+                               showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Invite Code'),
+                                  content: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text('Share this code with others to let them join this private club.'),
+                                      const SizedBox(height: 16),
+                                      SelectableText(
+                                        widget.club.inviteCode!,
+                                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2),
+                                      ),
+                                    ],
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Close'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
                     Padding(
                       padding: const EdgeInsets.only(right: 16),
                       child: Center(
@@ -119,6 +154,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
                         ),
                       ),
                     )
+                  ],
                 ],
               ),
               SliverPersistentHeader(
