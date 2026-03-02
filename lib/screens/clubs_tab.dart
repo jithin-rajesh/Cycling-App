@@ -1,8 +1,8 @@
-
 import 'package:flutter/material.dart';
 import '../models/club_model.dart';
 import '../services/club_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/club_card_placeholder.dart';
 import 'club_detail_screen.dart';
 import 'create_club_screen.dart';
 
@@ -19,7 +19,13 @@ class _ClubsTabState extends State<ClubsTab> {
   bool _isLoading = true;
   String _selectedActivityFilter = 'All';
 
-  final List<String> _activityFilters = ['All', 'Cycling', 'Running', 'Gym', 'Mixed'];
+  final List<String> _activityFilters = [
+    'All',
+    'Cycling',
+    'Running',
+    'Gym',
+    'Mixed'
+  ];
 
   @override
   void initState() {
@@ -30,7 +36,8 @@ class _ClubsTabState extends State<ClubsTab> {
   Future<void> _loadClubs() async {
     setState(() => _isLoading = true);
     try {
-      final clubs = await _clubService.getClubs(activityType: _selectedActivityFilter);
+      final clubs =
+          await _clubService.getClubs(activityType: _selectedActivityFilter);
       if (mounted) {
         setState(() {
           _clubs = clubs;
@@ -47,16 +54,16 @@ class _ClubsTabState extends State<ClubsTab> {
 
   Future<void> _handleClubTap(ClubModel club) async {
     bool isMember = await _clubService.isMember(club.id);
-    
+
     // Check if user is an admin (creator), who can always bypass
-    // We don't have current user ID easily available without extra call or passed context, 
+    // We don't have current user ID easily available without extra call or passed context,
     // but service handles authorization.
     // For UI flow:
-    
+
     if (club.isPrivate && !isMember) {
-       // Show dialog to enter code
-       if (!mounted) return;
-       _showJoinPrivateClubDialog(club);
+      // Show dialog to enter code
+      if (!mounted) return;
+      _showJoinPrivateClubDialog(club);
     } else {
       _navigateToDetail(club);
     }
@@ -99,27 +106,29 @@ class _ClubsTabState extends State<ClubsTab> {
           ),
           ElevatedButton(
             onPressed: () async {
-               if (codeController.text.isEmpty) return;
-               
-               try {
-                 // Show loading or disable button... simple awaiting here
-                 final club = await _clubService.joinClubByCode(codeController.text.trim());
-                 
-                 if (context.mounted) {
-                   Navigator.pop(context); // Close dialog
-                   if (club != null) {
-                      _navigateToDetail(club);
-                   }
-                 }
-               } catch (e) {
-                 if (context.mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     SnackBar(content: Text('Failed: $e')),
-                   );
-                 }
-               }
+              if (codeController.text.isEmpty) return;
+
+              try {
+                // Show loading or disable button... simple awaiting here
+                final club = await _clubService
+                    .joinClubByCode(codeController.text.trim());
+
+                if (context.mounted) {
+                  Navigator.pop(context); // Close dialog
+                  if (club != null) {
+                    _navigateToDetail(club);
+                  }
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed: $e')),
+                  );
+                }
+              }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: CruizrTheme.accentPink),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: CruizrTheme.accentPink),
             child: const Text('Join'),
           ),
         ],
@@ -129,7 +138,7 @@ class _ClubsTabState extends State<ClubsTab> {
 
   Future<void> _showJoinPrivateClubDialog(ClubModel club) async {
     final codeController = TextEditingController();
-    
+
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -137,7 +146,8 @@ class _ClubsTabState extends State<ClubsTab> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('This is a private club. Please enter the invite code to join.'),
+            const Text(
+                'This is a private club. Please enter the invite code to join.'),
             const SizedBox(height: 16),
             TextField(
               controller: codeController,
@@ -156,10 +166,11 @@ class _ClubsTabState extends State<ClubsTab> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await _clubService.joinClub(club.id, code: codeController.text.trim());
+                await _clubService.joinClub(club.id,
+                    code: codeController.text.trim());
                 if (context.mounted) {
-                   Navigator.pop(context); // Close dialog
-                   _navigateToDetail(club);
+                  Navigator.pop(context); // Close dialog
+                  _navigateToDetail(club);
                 }
               } catch (e) {
                 if (context.mounted) {
@@ -205,10 +216,12 @@ class _ClubsTabState extends State<ClubsTab> {
             child: Row(
               children: [
                 ActionChip(
-                  avatar: const Icon(Icons.vpn_key, size: 16, color: Colors.white),
+                  avatar:
+                      const Icon(Icons.vpn_key, size: 16, color: Colors.white),
                   label: const Text('Join via Code'),
                   backgroundColor: CruizrTheme.primaryDark,
-                  labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  labelStyle: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
                   onPressed: _showJoinByCodeDialog,
                 ),
                 const SizedBox(width: 8),
@@ -230,8 +243,11 @@ class _ClubsTabState extends State<ClubsTab> {
                       selectedColor: CruizrTheme.accentPink.withOpacity(0.2),
                       checkmarkColor: CruizrTheme.accentPink,
                       labelStyle: TextStyle(
-                        color: isSelected ? CruizrTheme.accentPink : Colors.black87,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? CruizrTheme.accentPink
+                            : Colors.black87,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                   );
@@ -239,16 +255,18 @@ class _ClubsTabState extends State<ClubsTab> {
               ],
             ),
           ),
-          
+
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _clubs.isEmpty
-                    ? const Center(child: Text('No clubs found matching your criteria.'))
+                    ? const Center(
+                        child: Text('No clubs found matching your criteria.'))
                     : ListView.separated(
                         padding: const EdgeInsets.all(16),
                         itemCount: _clubs.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 16),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 16),
                         itemBuilder: (context, index) {
                           final club = _clubs[index];
                           return _buildClubCard(club);
@@ -267,14 +285,6 @@ class _ClubsTabState extends State<ClubsTab> {
         height: 200,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          image: DecorationImage(
-            image: NetworkImage(club.imageUrl),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.4),
-              BlendMode.darken,
-            ),
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
@@ -283,97 +293,130 @@ class _ClubsTabState extends State<ClubsTab> {
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            // Private Badge
-            if (club.isPrivate)
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background: gradient placeholder or network image
+              if (club.imageUrl.isNotEmpty)
+                Image.network(
+                  club.imageUrl,
+                  fit: BoxFit.cover,
+                  color: Colors.black.withOpacity(0.4),
+                  colorBlendMode: BlendMode.darken,
+                  errorBuilder: (_, __, ___) => ClubCardPlaceholder(
+                    activityType: club.activityType,
+                    clubName: club.name,
+                    customIconCodePoint: club.iconCodePoint,
+                  ),
+                )
+              else
+                ClubCardPlaceholder(
+                  activityType: club.activityType,
+                  clubName: club.name,
+                  customIconCodePoint: club.iconCodePoint,
+                ),
+
+              // Dark overlay for text legibility on gradient
+              if (club.imageUrl.isEmpty)
+                Container(
+                  color: Colors.black.withOpacity(0.25),
+                ),
+
+              // Private Badge
+              if (club.isPrivate)
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child:
+                        const Icon(Icons.lock, color: Colors.white, size: 16),
+                  ),
+                ),
+
+              // Activity Type Badge
               Positioned(
                 top: 16,
-                left: 16,
+                right: 16,
                 child: Container(
-                  padding: const EdgeInsets.all(8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
+                    color: CruizrTheme.accentPink,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(Icons.lock, color: Colors.white, size: 16),
-                ),
-              ),
-
-             // Activity Type Badge
-            Positioned(
-              top: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: CruizrTheme.accentPink,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  club.activityType,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ),
-
-            Positioned(
-              bottom: 16,
-              left: 16,
-              right: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    club.name,
+                  child: Text(
+                    club.activityType,
                     style: const TextStyle(
-                      fontFamily: 'Playfair Display',
                       color: Colors.white,
-                      fontSize: 24,
                       fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        '${club.memberCount} Members',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (club.isPrivate) ...[
-                        const SizedBox(width: 8),
-                        const Text(
-                          '• Private',
-                          style: TextStyle(
-                            color: Colors.white70,
-                             fontWeight: FontWeight.w500,
-                             fontStyle: FontStyle.italic,
-                          ),
-                        )
-                      ]
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    club.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
                       fontSize: 12,
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+
+              // Bottom text
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      club.name,
+                      style: const TextStyle(
+                        fontFamily: 'Playfair Display',
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          '${club.memberCount} Members',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (club.isPrivate) ...[
+                          const SizedBox(width: 8),
+                          const Text(
+                            '• Private',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w500,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          )
+                        ]
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      club.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

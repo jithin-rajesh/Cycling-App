@@ -8,6 +8,7 @@ class ClubModel {
   final String? inviteCode;
   final String activityType; // e.g., 'Cycling', 'Running', 'Gym', 'Mixed'
   final List<String> adminIds;
+  final int? iconCodePoint; // Material Icons code point for the club icon
 
   ClubModel({
     required this.id,
@@ -19,6 +20,7 @@ class ClubModel {
     this.inviteCode,
     this.activityType = 'Mixed',
     this.adminIds = const [],
+    this.iconCodePoint,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,6 +34,7 @@ class ClubModel {
       'inviteCode': inviteCode,
       'activityType': activityType,
       'adminIds': adminIds,
+      'iconCodePoint': iconCodePoint,
     };
   }
 
@@ -46,6 +49,7 @@ class ClubModel {
       inviteCode: map['inviteCode'],
       activityType: map['activityType'] ?? 'Mixed',
       adminIds: List<String>.from(map['adminIds'] ?? []),
+      iconCodePoint: map['iconCodePoint'],
     );
   }
 }

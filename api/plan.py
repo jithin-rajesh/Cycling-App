@@ -82,7 +82,8 @@ def stream_nvidia_nim(prompt: str, wfile):
     try:
         with urlopen(req, timeout=180) as resp:
             buffer = ""
-            while True:
+            done = False
+            while not done:
                 chunk = resp.read(1024)
                 if not chunk:
                     break
@@ -97,11 +98,15 @@ def stream_nvidia_nim(prompt: str, wfile):
                         continue
                     data_str = line[6:]
                     if data_str == "[DONE]":
+                        done = True
                         break
 
                     try:
                         data = json.loads(data_str)
-                        delta = data.get("choices", [{}])[0].get("delta", {})
+                        choices = data.get("choices", [])
+                        if not choices:
+                            continue
+                        delta = choices[0].get("delta", {})
 
                         # Kimi k2.5 streams reasoning in reasoning_content
                         # and final answer in content. We ONLY want the final answer.
@@ -113,7 +118,7 @@ def stream_nvidia_nim(prompt: str, wfile):
                                 "node": "planner_token",
                                 "token": token,
                             })
-                    except json.JSONDecodeError:
+                    except Exception:
                         continue
 
     except HTTPError as e:
@@ -152,7 +157,8 @@ def stream_mistral(prompt: str, wfile):
     try:
         with urlopen(req, timeout=180) as resp:
             buffer = ""
-            while True:
+            done = False
+            while not done:
                 chunk = resp.read(256)
                 if not chunk:
                     break
@@ -166,11 +172,15 @@ def stream_mistral(prompt: str, wfile):
                         continue
                     data_str = line[6:]
                     if data_str == "[DONE]":
+                        done = True
                         break
 
                     try:
                         data = json.loads(data_str)
-                        delta = data.get("choices", [{}])[0].get("delta", {})
+                        choices = data.get("choices", [])
+                        if not choices:
+                            continue
+                        delta = choices[0].get("delta", {})
                         token = delta.get("content") or ""
                         if token:
                             full_content += token
@@ -178,7 +188,7 @@ def stream_mistral(prompt: str, wfile):
                                 "node": "executor_token",
                                 "token": token,
                             })
-                    except json.JSONDecodeError:
+                    except Exception:
                         continue
 
     except HTTPError as e:

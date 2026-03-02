@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/create_post_sheet.dart';
 import '../widgets/club_chat_tab.dart';
+import '../widgets/club_card_placeholder.dart';
 import '../models/club_model.dart';
 import '../models/club_post_model.dart';
 import '../services/club_service.dart';
@@ -85,35 +86,53 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
                       shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                     ),
                   ),
-                  background: Image.network(
-                    widget.club.imageUrl,
-                    fit: BoxFit.cover,
-                    color: Colors.black38,
-                    colorBlendMode: BlendMode.darken,
-                  ),
+                  background: widget.club.imageUrl.isNotEmpty
+                      ? Image.network(
+                          widget.club.imageUrl,
+                          fit: BoxFit.cover,
+                          color: Colors.black38,
+                          colorBlendMode: BlendMode.darken,
+                          errorBuilder: (_, __, ___) => ClubCardPlaceholder(
+                            activityType: widget.club.activityType,
+                            clubName: widget.club.name,
+                            customIconCodePoint: widget.club.iconCodePoint,
+                          ),
+                        )
+                      : ClubCardPlaceholder(
+                          activityType: widget.club.activityType,
+                          clubName: widget.club.name,
+                          customIconCodePoint: widget.club.iconCodePoint,
+                        ),
                 ),
                 actions: [
                   if (!_isLoading) ...[
-                     if (widget.club.isPrivate && _isMember && widget.club.inviteCode != null)
+                    if (widget.club.isPrivate &&
+                        _isMember &&
+                        widget.club.inviteCode != null)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: CircleAvatar(
                           backgroundColor: Colors.black45,
                           child: IconButton(
-                            icon: const Icon(Icons.share, color: Colors.white, size: 20),
+                            icon: const Icon(Icons.share,
+                                color: Colors.white, size: 20),
                             onPressed: () {
-                               showDialog(
+                              showDialog(
                                 context: context,
                                 builder: (context) => AlertDialog(
                                   title: const Text('Invite Code'),
                                   content: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Text('Share this code with others to let them join this private club.'),
+                                      const Text(
+                                          'Share this code with others to let them join this private club.'),
                                       const SizedBox(height: 16),
                                       SelectableText(
                                         widget.club.inviteCode!,
-                                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2),
+                                        style: const TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 2),
                                       ),
                                     ],
                                   ),
@@ -176,37 +195,36 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
           body: TabBarView(
             children: [
               _buildPostFeed(),
-              _isMember 
-               ? ClubChatTab(clubId: widget.club.id)
-               : _buildJoinPrompt(),
+              _isMember
+                  ? ClubChatTab(clubId: widget.club.id)
+                  : _buildJoinPrompt(),
             ],
           ),
         ),
       ),
       floatingActionButton: _isMember
-          ? Builder(
-              builder: (context) {
-                // Only show FAB on Feed tab? Or check index?
-                // TabController is in a parent widget, accessing it here is tricky without a key or context lookups.
-                // For simplicity, we can let it float there, but usually Chat has its own input.
-                // Let's just hide it if we are on Chat tab?
-                // With DefaultTabController and NestedScrollView, keeping track of index requires a custom controller.
-                // Alternative: Show FAB always, but maybe push it up when keyboard opens?
-                // Actually, Chat has its own input bar, so FAB might overlay it.
-                // Let's rely on the user interface: FAB is "Post" (camera icon).
-                // Ideally, hide FAB when on Chat tab.
-                // For now, I'll return it as is, but it might overlap Chat input.
-                // Let's wrap FAB in a visibility check if possible, or just accept overlap for MVP.
-                // A better UX: Listen to tab changes.
-                // Let's stick to simple implementation: FAB is visible.
-                return FloatingActionButton.extended(
-                  onPressed: _showCreatePostSheet,
-                  backgroundColor: CruizrTheme.accentPink,
-                  icon: const Icon(Icons.add_a_photo, color: Colors.white),
-                  label: const Text('Post', style: TextStyle(color: Colors.white)),
-                );
-              }
-            )
+          ? Builder(builder: (context) {
+              // Only show FAB on Feed tab? Or check index?
+              // TabController is in a parent widget, accessing it here is tricky without a key or context lookups.
+              // For simplicity, we can let it float there, but usually Chat has its own input.
+              // Let's just hide it if we are on Chat tab?
+              // With DefaultTabController and NestedScrollView, keeping track of index requires a custom controller.
+              // Alternative: Show FAB always, but maybe push it up when keyboard opens?
+              // Actually, Chat has its own input bar, so FAB might overlay it.
+              // Let's rely on the user interface: FAB is "Post" (camera icon).
+              // Ideally, hide FAB when on Chat tab.
+              // For now, I'll return it as is, but it might overlap Chat input.
+              // Let's wrap FAB in a visibility check if possible, or just accept overlap for MVP.
+              // A better UX: Listen to tab changes.
+              // Let's stick to simple implementation: FAB is visible.
+              return FloatingActionButton.extended(
+                onPressed: _showCreatePostSheet,
+                backgroundColor: CruizrTheme.accentPink,
+                icon: const Icon(Icons.add_a_photo, color: Colors.white),
+                label:
+                    const Text('Post', style: TextStyle(color: Colors.white)),
+              );
+            })
           : null,
     );
   }

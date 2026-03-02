@@ -246,6 +246,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         backgroundColor: Colors.white,
         iconTheme: const IconThemeData(color: CruizrTheme.textPrimary),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_comment_outlined),
@@ -572,7 +576,22 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
   Widget _buildRawPlanList(String rawJson) {
     final items = _tryParsePlan(rawJson);
-    if (items.isEmpty) return const SizedBox.shrink();
+    if (items.isEmpty) {
+      if (rawJson.trim().isNotEmpty) {
+        // Fallback for older chats that returned Markdown tables
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: _buildOutputCard(
+              title: 'Training Plan',
+              subtitle: 'Mistral (Legacy)',
+              icon: Icons.table_chart_outlined,
+              color: const Color(0xFF5DB894),
+              content: rawJson,
+              isCollapsible: true),
+        );
+      }
+      return const SizedBox.shrink();
+    }
     return _buildPlanList(items, rawJson);
   }
 

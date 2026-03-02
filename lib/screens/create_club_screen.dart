@@ -18,8 +18,33 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
   String _selectedActivityType = 'Cycling';
   bool _isPrivate = false;
   bool _isLoading = false;
+  int? _selectedIconCodePoint;
 
   final List<String> _activityTypes = ['Cycling', 'Running', 'Gym', 'Mixed'];
+
+  // Curated icon set for clubs
+  static const List<_ClubIcon> _availableIcons = [
+    _ClubIcon(Icons.directions_bike, 'Bike'),
+    _ClubIcon(Icons.directions_run, 'Run'),
+    _ClubIcon(Icons.fitness_center, 'Gym'),
+    _ClubIcon(Icons.groups, 'Group'),
+    _ClubIcon(Icons.emoji_events, 'Trophy'),
+    _ClubIcon(Icons.local_fire_department, 'Fire'),
+    _ClubIcon(Icons.flash_on, 'Bolt'),
+    _ClubIcon(Icons.terrain, 'Mountain'),
+    _ClubIcon(Icons.pool, 'Swim'),
+    _ClubIcon(Icons.sports, 'Sports'),
+    _ClubIcon(Icons.pedal_bike, 'Pedal'),
+    _ClubIcon(Icons.surfing, 'Surf'),
+    _ClubIcon(Icons.self_improvement, 'Yoga'),
+    _ClubIcon(Icons.hiking, 'Hike'),
+    _ClubIcon(Icons.skateboarding, 'Skate'),
+    _ClubIcon(Icons.sports_martial_arts, 'Martial'),
+    _ClubIcon(Icons.shield, 'Shield'),
+    _ClubIcon(Icons.favorite, 'Heart'),
+    _ClubIcon(Icons.star, 'Star'),
+    _ClubIcon(Icons.rocket_launch, 'Rocket'),
+  ];
 
   Future<void> _createClub() async {
     if (!_formKey.currentState!.validate()) return;
@@ -34,6 +59,7 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
         description: _descriptionController.text.trim(),
         activityType: _selectedActivityType,
         isPrivate: _isPrivate,
+        iconCodePoint: _selectedIconCodePoint,
       );
 
       if (mounted) {
@@ -135,7 +161,69 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
                   }
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+
+              // Icon Picker
+              const Text(
+                'Choose an Icon',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Playfair Display',
+                  color: CruizrTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Pick an icon to represent your club',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: CruizrTheme.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: _availableIcons.map((clubIcon) {
+                  final isSelected =
+                      _selectedIconCodePoint == clubIcon.icon.codePoint;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedIconCodePoint =
+                            isSelected ? null : clubIcon.icon.codePoint;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? CruizrTheme.accentPink.withValues(alpha: 0.15)
+                            : CruizrTheme.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected
+                              ? CruizrTheme.accentPink
+                              : CruizrTheme.border,
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Icon(
+                        clubIcon.icon,
+                        size: 26,
+                        color: isSelected
+                            ? CruizrTheme.accentPink
+                            : CruizrTheme.textSecondary,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              const SizedBox(height: 24),
               SwitchListTile(
                 title: const Text('Private Club'),
                 subtitle: const Text('Members can only join via invite code'),
@@ -170,4 +258,10 @@ class _CreateClubScreenState extends State<CreateClubScreen> {
       ),
     );
   }
+}
+
+class _ClubIcon {
+  final IconData icon;
+  final String label;
+  const _ClubIcon(this.icon, this.label);
 }

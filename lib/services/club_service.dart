@@ -12,19 +12,22 @@ class ClubService {
   Future<List<ClubModel>> getClubs({String? activityType}) async {
     // If no clubs exist, we'll create some generic ones (in a real app, this would be admin side)
     Query query = _firestore.collection('clubs');
-    
+
     if (activityType != null && activityType != 'All') {
       query = query.where('activityType', isEqualTo: activityType);
     }
 
     final snapshot = await query.get();
 
-    if (snapshot.docs.isEmpty && (activityType == null || activityType == 'All')) {
+    if (snapshot.docs.isEmpty &&
+        (activityType == null || activityType == 'All')) {
       await _seedClubs();
       return getClubs();
     }
 
-    return snapshot.docs.map((doc) => ClubModel.fromMap(doc.data() as Map<String, dynamic>)).toList();
+    return snapshot.docs
+        .map((doc) => ClubModel.fromMap(doc.data() as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> _seedClubs() async {
@@ -34,8 +37,7 @@ class ClubService {
         name: 'Relaxed Riders',
         description:
             'For those who enjoy the journey more than the speed. Join us for scenic rides and good vibes.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1541625602330-2277a4c46182?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+        imageUrl: '',
         memberCount: 120,
         activityType: 'Cycling',
       ),
@@ -44,8 +46,7 @@ class ClubService {
         name: 'Weekend Warriors',
         description:
             'We crush miles on Saturdays and Sundays. Join the challenge!',
-        imageUrl:
-            'https://images.unsplash.com/photo-1517649763962-0c623066013b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+        imageUrl: '',
         memberCount: 340,
         activityType: 'Cycling',
       ),
@@ -53,8 +54,7 @@ class ClubService {
         id: 'elite_cyclists',
         name: 'Elite Cyclists',
         description: 'High performance training club. Push your limits.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1558556209-760775d5069b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+        imageUrl: '',
         memberCount: 85,
         activityType: 'Cycling',
       ),
@@ -62,8 +62,7 @@ class ClubService {
         id: 'morning_joggers',
         name: 'Morning Joggers',
         description: 'Start your day with a run. Sunrise chasers welcome.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+        imageUrl: '',
         memberCount: 200,
         activityType: 'Running',
       ),
@@ -83,32 +82,35 @@ class ClubService {
     required String activityType,
     required bool isPrivate,
     String? imageUrl,
+    int? iconCodePoint,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User must be logged in');
 
     final docRef = _firestore.collection('clubs').doc();
     String? inviteCode;
-    
+
     if (isPrivate) {
-       // Simple 6-char random code
-       inviteCode = DateTime.now().millisecondsSinceEpoch.toString().substring(7);
+      // Simple 6-char random code
+      inviteCode =
+          DateTime.now().millisecondsSinceEpoch.toString().substring(7);
     }
 
     final club = ClubModel(
       id: docRef.id,
       name: name,
       description: description,
-      imageUrl: imageUrl ?? 'https://images.unsplash.com/photo-1558556209-760775d5069b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80', // Default image
+      imageUrl: imageUrl ?? '',
       memberCount: 1,
       isPrivate: isPrivate,
       inviteCode: inviteCode,
       activityType: activityType,
       adminIds: [user.uid],
+      iconCodePoint: iconCodePoint,
     );
 
     await docRef.set(club.toMap());
-    
+
     // Auto-join the creator
     await joinClub(docRef.id, code: inviteCode);
   }
@@ -135,15 +137,15 @@ class ClubService {
 
     final clubDoc = await _firestore.collection('clubs').doc(clubId).get();
     if (!clubDoc.exists) throw Exception('Club not found');
-    
+
     final club = ClubModel.fromMap(clubDoc.data()!);
 
     if (club.isPrivate) {
       if (code == null || code != club.inviteCode) {
-         // Allow if user is admin (e.g. creator joining)
-         if (!club.adminIds.contains(user.uid)) {
-            throw Exception('Invalid invite code');
-         }
+        // Allow if user is admin (e.g. creator joining)
+        if (!club.adminIds.contains(user.uid)) {
+          throw Exception('Invalid invite code');
+        }
       }
     }
 
